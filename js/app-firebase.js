@@ -48,11 +48,9 @@ async function saveUserData() {
 window.loginWithGoogle = async function() {
   try {
     const provider = new window._GoogleAuthProvider();
-    await window._signInWithPopup(window._auth, provider);
-  } catch (e) {
-    if (e.code !== 'auth/popup-closed-by-user') {
-      alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
-    }
+    await window._signInWithRedirect(window._auth, provider);
+  } catch(e) {
+    alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
   }
 };
 
