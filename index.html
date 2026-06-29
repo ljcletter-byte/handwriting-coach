@@ -302,7 +302,7 @@
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -325,7 +325,8 @@ const db   = getFirestore(app);
 window._auth = auth;
 window._db   = db;
 window._GoogleAuthProvider = GoogleAuthProvider;
-window._signInWithPopup    = signInWithPopup;
+window._signInWithRedirect = signInWithRedirect;
+window._getRedirectResult  = getRedirectResult;
 window._signOut            = signOut;
 window._doc    = doc;
 window._getDoc = getDoc;
