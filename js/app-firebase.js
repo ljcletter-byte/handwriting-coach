@@ -1,4 +1,4 @@
-// ── Firebase 데이터 관리 ───────────────────────────────────
+// ── Firebase 데이터 관리 ──────────────────────────────────
 let userData = {
   startDate: new Date().toISOString().split('T')[0],
   completedDays: {},
@@ -21,11 +21,10 @@ window.loadUserData = async function(uid) {
     if (snap.exists()) {
       userData = snap.data();
     } else {
-      // 새 사용자 — 초기 데이터 저장
       await window._setDoc(ref, userData);
     }
     setSyncStatus('synced');
-  } catch (e) {
+  } catch(e) {
     console.error('데이터 로드 오류:', e);
     setSyncStatus('synced');
   }
@@ -39,18 +38,40 @@ async function saveUserData() {
     const ref = window._doc(window._db, 'users', user.uid);
     await window._setDoc(ref, userData);
     setSyncStatus('synced');
-  } catch (e) {
+  } catch(e) {
     console.error('저장 오류:', e);
   }
 }
 
 // ── 인증 ─────────────────────────────────────────────────
 window.loginWithGoogle = async function() {
+  const btn     = document.getElementById('btn-login');
+  const loading = document.getElementById('login-loading');
+  btn.style.display     = 'none';
+  loading.style.display = 'block';
   try {
+    // 팝업 방식 먼저 시도
     const provider = new window._GoogleAuthProvider();
-    await window._signInWithRedirect(window._auth, provider);
+    await window._signInWithPopup(window._auth, provider);
   } catch(e) {
-    alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+    if (e.code === 'auth/popup-blocked' ||
+        e.code === 'auth/popup-closed-by-user' ||
+        e.code === 'auth/cancelled-popup-request') {
+      // 팝업 차단 시 리디렉션 방식으로 전환
+      try {
+        const provider = new window._GoogleAuthProvider();
+        await window._signInWithRedirect(window._auth, provider);
+      } catch(e2) {
+        console.error('redirect 오류:', e2);
+        btn.style.display     = 'flex';
+        loading.style.display = 'none';
+        alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+      }
+    } else {
+      console.error('로그인 오류:', e.code);
+      btn.style.display     = 'flex';
+      loading.style.display = 'none';
+    }
   }
 };
 
@@ -61,12 +82,12 @@ window.logout = async function() {
 };
 
 // ── 날짜 헬퍼 ─────────────────────────────────────────────
-const today = () => new Date().toISOString().split('T')[0];
+const today       = () => new Date().toISOString().split('T')[0];
 const dayFromStart = () => {
   const d = Math.floor((new Date(today()) - new Date(userData.startDate)) / 864e5) + 1;
   return Math.min(Math.max(d, 1), 84);
 };
-const wkDay = n => ({ w: Math.min(Math.ceil(n / 7), 12), d: Math.min(((n-1)%7)+1, 7) });
+const wkDay    = n => ({ w: Math.min(Math.ceil(n/7), 12), d: Math.min(((n-1)%7)+1, 7) });
 const doneCount = () => Object.keys(userData.completedDays || {}).length;
 
 // ── 탭 전환 ───────────────────────────────────────────────
@@ -80,7 +101,7 @@ window.switchTab = function(name) {
 
 // ── 대시보드 ──────────────────────────────────────────────
 function updateDash() {
-  const n = dayFromStart(), {w, d} = wkDay(n), done = doneCount();
+  const n = dayFromStart(), {w} = wkDay(n), done = doneCount();
   document.getElementById('dash-week').textContent = w;
   document.getElementById('dash-day').textContent  = n;
   document.getElementById('dash-done').textContent = done;
@@ -125,11 +146,12 @@ function renderMission() {
       <div class="example-box">${md.p3}</div>
     </div>
     <div class="day-pills">
-      ${[1,2,3,4,5,6,7].map(d => `<button class="day-pill${d===selD?' active':''}" onclick="selDay(${d})">${d}일</button>`).join('')}
+      ${[1,2,3,4,5,6,7].map(d =>
+        `<button class="day-pill${d===selD?' active':''}" onclick="selDay(${d})">${d}일</button>`
+      ).join('')}
     </div>`;
   renderWorksheet();
 }
-
 window.selDay = function(d) { selD = d; renderMission(); };
 
 // ── 워크시트 안내 ─────────────────────────────────────────
@@ -145,8 +167,7 @@ function renderWorksheet() {
         <div class="ws-theme">${mw.title}</div>
         <p>${g.intro}</p>
       </div>
-    </div>
-    <div class="ws-sections">`;
+    </div><div class="ws-sections">`;
   g.sections.forEach((sec, i) => {
     const content = i === 0 ? null : i === 1 ? md.p2 : md.p3;
     html += `
@@ -177,7 +198,6 @@ function renderWorksheet() {
     </div>`;
   document.getElementById('worksheet-content').innerHTML = html;
 }
-
 window.checklistChange = function() {
   const checks = document.querySelectorAll('.ws-check-item input');
   if ([...checks].every(c => c.checked))
@@ -267,7 +287,6 @@ function beep() {
 
 // ── 저널 ─────────────────────────────────────────────────
 let uploadedImg = null;
-
 document.getElementById('file-input').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   document.getElementById('upload-filename').textContent = f.name;
@@ -282,17 +301,16 @@ document.getElementById('file-input').addEventListener('change', e => {
 
 window.saveJournal = async function() {
   const t = today();
-  if (!userData.journals) userData.journals = {};
+  if (!userData.journals)     userData.journals = {};
   if (!userData.completedDays) userData.completedDays = {};
   userData.journals[t] = {
     weakness: document.getElementById('weakness-input').value,
     feedback: document.getElementById('feedback-input').value,
-    savedAt: new Date().toISOString()
+    savedAt:  new Date().toISOString()
   };
   userData.completedDays[t] = true;
   await saveUserData();
-  updateDash();
-  renderCalendar();
+  updateDash(); renderCalendar();
   const ok = document.getElementById('save-ok');
   ok.classList.add('show');
   setTimeout(() => ok.classList.remove('show'), 3000);
@@ -314,7 +332,8 @@ window.getAIFeedback = async function() {
   try {
     const uc = [];
     if (uploadedImg) {
-      const b = uploadedImg.split(',')[1], mt = uploadedImg.split(';')[0].split(':')[1] || 'image/jpeg';
+      const b = uploadedImg.split(',')[1];
+      const mt = uploadedImg.split(';')[0].split(':')[1] || 'image/jpeg';
       uc.push({ type: 'image', source: { type: 'base64', media_type: mt, data: b } });
     }
     let pr = `당신은 한국어 손글씨 교정 전문 AI 코치입니다.\n현재 Day ${dn}/84 (${selW}주차 ${selD}일차), 주제: ${mw.title}\nPart 1: ${md.p1}\nPart 2: ${md.p2}\nPart 3: ${md.p3}`;
@@ -325,12 +344,14 @@ window.getAIFeedback = async function() {
     pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **내일의 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
     uc.push({ type: 'text', text: pr });
     const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: uc }] })
     });
     const data = await res.json();
     const txt = data.content.map(i => i.text || '').join('');
-    document.getElementById('ai-result').innerHTML = txt.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    document.getElementById('ai-result').innerHTML =
+      txt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     document.getElementById('ai-result').classList.add('show');
     document.getElementById('feedback-input').value = txt;
   } catch(err) {
@@ -355,8 +376,8 @@ function renderCalendar() {
   for (let d = 1; d <= last.getDate(); d++) {
     const dt = new Date(calY, calM, d), ds = dt.toISOString().split('T')[0];
     const el = document.createElement('div'); el.textContent = d;
-    const inC = dt >= start && dt <= end;
-    const isT = ds === today();
+    const inC  = dt >= start && dt <= end;
+    const isT  = ds === today();
     const isDone = (userData.completedDays || {})[ds];
     el.className = 'cal-day' + (isDone ? ' done' : isT ? ' today' : inC ? ' challenge' : '');
     g.appendChild(el);
