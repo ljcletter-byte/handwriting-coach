@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="12주 84일 악필 교정 프로그램 — 매일 10분으로 손글씨를 바꿔보세요">
+  <meta name="theme-color" content="#2D6A4F">
+  <title>12주 악필 교정 챌린저</title>
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="12주 악필 교정 챌린저">
+  <meta property="og:description" content="매일 10분, 84일의 기적 — 손글씨 교정 프로그램">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── 헤더 ──────────────────────────────────────────────── -->
+<header class="app-header">
+  <div class="app-header-inner">
+    <div class="app-logo">
+      <div class="app-logo-icon">✍️</div>
+      <div>
+        <h1>12주 악필 교정 챌린저</h1>
+        <p>매일 10분 · 84일의 기적</p>
+      </div>
+    </div>
+    <div class="app-header-badge">손글씨 교정 프로그램</div>
+  </div>
+</header>
+
+<div class="app-wrapper">
+
+  <!-- ── 대시보드 ────────────────────────────────────────── -->
+  <div class="dash-grid fadein">
+    <div class="dash-card">
+      <div class="dash-label">현재 주차</div>
+      <div class="dash-value" id="dash-week">1</div>
+      <div class="dash-sub">Week</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-label">오늘 일차</div>
+      <div class="dash-value" id="dash-day">1</div>
+      <div class="dash-sub">Day</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-label">완료 일수</div>
+      <div class="dash-value neutral" id="dash-done">0</div>
+      <div class="dash-sub">/ 84일</div>
+    </div>
+  </div>
+
+  <div class="progress-card fadein">
+    <div class="progress-header">
+      <span>전체 진행률</span>
+      <strong id="pct-text">0%</strong>
+    </div>
+    <div class="progress-bg">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- ── 네비 탭 ──────────────────────────────────────────── -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="mission"  onclick="switchTab('mission')">📋 미션</button>
+    <button class="nav-tab"        data-tab="worksheet" onclick="switchTab('worksheet')">📄 연습 안내</button>
+    <button class="nav-tab"        data-tab="journal"  onclick="switchTab('journal')">📓 일지</button>
+    <button class="nav-tab"        data-tab="calendar" onclick="switchTab('calendar')">📅 스탬프</button>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 1: 미션
+  ════════════════════════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-mission">
+
+    <!-- 준비 루틴 -->
+    <div class="sec-label">준비 루틴 — 시작 전 2분</div>
+    <div class="card warmup-card fadein">
+      <div class="warmup-header">
+        <div class="warmup-header-icon">🤲</div>
+        <div>
+          <h3>손 풀기 & 마인드 컨트롤</h3>
+          <p>글씨 쓰기 전 준비 루틴 — 천천히 따라하세요</p>
+        </div>
+      </div>
+      <div class="warmup-steps" id="warmup-steps">
+        <!-- JS로 렌더 -->
+      </div>
+      <div class="breath-area">
+        <div class="breath-label">마음 정리 — 복식 호흡</div>
+        <div class="breath-circle pulse" id="breath-circle" onclick="startBreath()">시작</div>
+        <div class="breath-phase" id="breath-phase">원을 클릭해 호흡을 시작하세요</div>
+        <div class="breath-sub" id="breath-sub">4초 들숨 → 4초 날숨 × 3회</div>
+      </div>
+      <div class="quote-area" id="quote-text"></div>
+    </div>
+
+    <!-- 주차 선택 -->
+    <div class="sec-label">주차 선택</div>
+    <div class="week-tabs" id="week-tabs"></div>
+
+    <!-- 미션 카드 -->
+    <div class="sec-label">오늘의 미션</div>
+    <div class="card fadein">
+      <div class="mission-header">
+        <h2 id="mission-title">1주차: 선긋기 & 기초 획</h2>
+        <span class="mission-badge" id="mission-badge">Day 1</span>
+      </div>
+      <div id="mission-body"></div>
+    </div>
+
+    <!-- 타이머 -->
+    <div class="sec-label">10분 타이머</div>
+    <div class="card timer-card fadein">
+      <div class="timer-display" id="timer-display">10:00</div>
+      <div class="timer-prog-bg">
+        <div class="timer-prog" id="timer-prog" style="width:100%"></div>
+      </div>
+      <div class="timer-btns">
+        <button class="btn btn-primary" id="btn-timer" onclick="timerToggle()">▶ 시작</button>
+        <button class="btn btn-default" onclick="timerReset()">↺ 초기화</button>
+      </div>
+      <div class="timer-done" id="timer-done">🎉 10분 완료! 오늘도 수고했어요</div>
+    </div>
+
+  </div><!-- /tab-mission -->
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 2: 연습 안내 (워크시트 대체)
+  ════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-worksheet">
+    <div class="sec-label">오늘의 연습 안내 — A4 용지로 직접 써보세요</div>
+    <div class="card fadein" id="worksheet-content">
+      <!-- JS로 렌더 -->
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 3: 일지 & AI 피드백
+  ════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-journal">
+    <div class="card journal-card fadein">
+
+      <div class="field-label">📷 오늘 연습 사진 업로드</div>
+      <div class="upload-area">
+        <input type="file" id="file-input" accept="image/*">
+        <span class="upload-icon">📸</span>
+        <p>클릭하여 사진 선택 — 업로드 시 AI 코치 자동 분석</p>
+        <div class="upload-filename" id="upload-filename"></div>
+      </div>
+      <img class="upload-preview" id="upload-preview" alt="연습 사진">
+
+      <div class="field-label">✏️ 오늘 발견한 가장 불규칙한 부분</div>
+      <textarea id="weakness-input" placeholder="예: 'ㄱ'의 꺾이는 각도가 너무 날카롭고 자음이 모음보다 커서 균형이 무너짐..." rows="3"></textarea>
+
+      <div class="ai-header">
+        <div class="field-label" style="margin:0">🤖 AI 코치 피드백</div>
+        <button class="btn-ai" id="btn-ai" onclick="getAIFeedback()">✨ 피드백 받기</button>
+      </div>
+      <div class="ai-loading" id="ai-loading">⏳ AI 코치가 글씨를 분석 중입니다...</div>
+      <div class="ai-result" id="ai-result"></div>
+
+      <div class="field-label">📝 피드백 메모 (자동 저장 또는 직접 입력)</div>
+      <textarea id="feedback-input" placeholder="AI 코치 피드백이 자동 저장되거나, 직접 입력해 보관하세요..." rows="4"></textarea>
+
+      <div class="save-row">
+        <span class="save-ok" id="save-ok">✅ 저장 완료!</span>
+        <button class="btn btn-primary" onclick="saveJournal()">💾 저장 & 스탬프 찍기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 4: 스탬프 캘린더
+  ════════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-calendar">
+    <div class="card cal-card fadein">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="calPrev()">‹</button>
+        <h3 id="cal-title"></h3>
+        <button class="cal-nav-btn" onclick="calNext()">›</button>
+      </div>
+      <div class="cal-dow">
+        <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-legend">
+        <div class="cal-legend-item"><div class="leg-dot" style="background:#2D6A4F"></div>완료</div>
+        <div class="cal-legend-item"><div class="leg-dot" style="background:#D8F3DC;border:1px solid #74C69D"></div>오늘</div>
+        <div class="cal-legend-item"><div class="leg-dot" style="background:#fff;border:1px solid #D9D4CB"></div>챌린지 기간</div>
+      </div>
+    </div>
+    <div class="cal-summary">
+      완료 <strong id="cal-done-count">0</strong>일 / 84일
+    </div>
+  </div>
+
+</div><!-- /app-wrapper -->
+
+<script src="js/missions.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // 워밍업 스텝 렌더
+  document.getElementById('warmup-steps').innerHTML = WARMUP_STEPS.map((s, i) => `
+    <div class="warmup-step">
+      <div class="step-num">${i + 1}</div>
+      <div class="step-body">
+        <h4>${s.icon} ${s.title}</h4>
+        <p>${s.desc}</p>
+        <span class="step-time">⏱ ${s.time}</span>
+      </div>
+    </div>`).join('');
+</script>
+
+</body>
+</html>
