@@ -10,102 +10,34 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* ── 로그인 화면 ── */
-    .login-screen {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg);
-      padding: 20px;
-    }
-    .login-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 40px 32px;
-      text-align: center;
-      max-width: 380px;
-      width: 100%;
-      box-shadow: 0 4px 24px rgba(44,40,32,.10);
-    }
-    .login-logo { font-size: 48px; margin-bottom: 16px; }
-    .login-title { font-size: 22px; font-weight: 500; color: var(--green); margin-bottom: 8px; }
-    .login-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; line-height: 1.6; }
-    .btn-google {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      width: 100%;
-      padding: 13px 20px;
-      background: #fff;
-      border: 1.5px solid #ddd;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      color: #333;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all .2s;
-      box-shadow: 0 1px 4px rgba(0,0,0,.08);
-    }
-    .btn-google:hover { background: #f8f8f8; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-    .btn-google img { width: 20px; height: 20px; }
-    .login-note { font-size: 11px; color: var(--text3); margin-top: 16px; line-height: 1.6; }
-
-    /* ── 유저 헤더 ── */
-    .user-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 16px;
-      background: var(--green);
-      justify-content: flex-end;
-    }
-    .user-avatar {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,.4);
-      object-fit: cover;
-    }
-    .user-name { font-size: 12px; color: rgba(255,255,255,.9); font-weight: 500; }
-    .btn-logout {
-      padding: 4px 12px;
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.3);
-      border-radius: 20px;
-      font-size: 11px;
-      color: #fff;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all .2s;
-    }
-    .btn-logout:hover { background: rgba(255,255,255,.25); }
-
-    /* ── 동기화 상태 ── */
-    .sync-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 20px;
-      margin-left: 8px;
-    }
-    .sync-badge.syncing { background: #FFF8E1; color: #E65100; }
-    .sync-badge.synced  { background: var(--green-light); color: var(--green); }
-    .sync-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .sync-badge.syncing .sync-dot { background: #E65100; animation: blink 1s infinite; }
-    .sync-badge.synced  .sync-dot { background: var(--green); }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-    .hidden { display: none !important; }
+    .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+    .login-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px 32px;text-align:center;max-width:380px;width:100%;box-shadow:0 4px 24px rgba(44,40,32,.10)}
+    .login-logo{font-size:48px;margin-bottom:16px}
+    .login-title{font-size:22px;font-weight:500;color:var(--green);margin-bottom:8px}
+    .login-sub{font-size:13px;color:var(--text2);margin-bottom:32px;line-height:1.6}
+    .btn-google{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px 20px;background:#fff;border:1.5px solid #ddd;border-radius:10px;font-size:14px;font-weight:500;color:#333;cursor:pointer;font-family:inherit;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+    .btn-google:hover{background:#f8f8f8;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+    .btn-google img{width:20px;height:20px}
+    .login-note{font-size:11px;color:var(--text3);margin-top:16px;line-height:1.6}
+    .login-loading{font-size:13px;color:var(--text2);margin-top:16px;display:none}
+    .user-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--green);justify-content:flex-end}
+    .user-avatar{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);object-fit:cover}
+    .user-name{font-size:12px;color:rgba(255,255,255,.9);font-weight:500}
+    .sync-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:20px;margin-left:8px}
+    .sync-badge.syncing{background:#FFF8E1;color:#E65100}
+    .sync-badge.synced{background:var(--green-light);color:var(--green)}
+    .sync-dot{width:6px;height:6px;border-radius:50%}
+    .sync-badge.syncing .sync-dot{background:#E65100;animation:blink 1s infinite}
+    .sync-badge.synced .sync-dot{background:var(--green)}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .btn-logout{padding:4px 12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;font-size:11px;color:#fff;cursor:pointer;font-family:inherit;transition:all .2s}
+    .btn-logout:hover{background:rgba(255,255,255,.25)}
+    .hidden{display:none!important}
   </style>
 </head>
 <body>
 
-<!-- ── 로그인 화면 ── -->
+<!-- 로그인 화면 -->
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="login-logo">✍️</div>
@@ -114,10 +46,11 @@
       매일 10분, 84일의 기적<br>
       Google 계정으로 로그인하면 집·직장·스마트폰<br>어디서든 같은 기록을 볼 수 있습니다.
     </div>
-    <button class="btn-google" onclick="loginWithGoogle()">
+    <button class="btn-google" id="btn-login" onclick="loginWithGoogle()">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
       Google 계정으로 로그인
     </button>
+    <div class="login-loading" id="login-loading">⏳ 로그인 중입니다...</div>
     <div class="login-note">
       로그인 정보는 Firebase에 안전하게 저장됩니다.<br>
       광고나 마케팅 목적으로 사용되지 않습니다.
@@ -125,10 +58,8 @@
   </div>
 </div>
 
-<!-- ── 메인 앱 ── -->
+<!-- 메인 앱 -->
 <div id="main-app" class="hidden">
-
-  <!-- 유저 바 -->
   <div class="user-bar">
     <img class="user-avatar" id="user-avatar" src="" alt="프로필">
     <span class="user-name" id="user-name">사용자</span>
@@ -139,7 +70,6 @@
     <button class="btn-logout" onclick="logout()">로그아웃</button>
   </div>
 
-  <!-- 헤더 -->
   <header class="app-header">
     <div class="app-header-inner">
       <div class="app-logo">
@@ -154,37 +84,16 @@
   </header>
 
   <div class="app-wrapper">
-
-    <!-- 대시보드 -->
     <div class="dash-grid fadein">
-      <div class="dash-card">
-        <div class="dash-label">현재 주차</div>
-        <div class="dash-value" id="dash-week">1</div>
-        <div class="dash-sub">Week</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-label">오늘 일차</div>
-        <div class="dash-value" id="dash-day">1</div>
-        <div class="dash-sub">Day</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-label">완료 일수</div>
-        <div class="dash-value neutral" id="dash-done">0</div>
-        <div class="dash-sub">/ 84일</div>
-      </div>
+      <div class="dash-card"><div class="dash-label">현재 주차</div><div class="dash-value" id="dash-week">1</div><div class="dash-sub">Week</div></div>
+      <div class="dash-card"><div class="dash-label">오늘 일차</div><div class="dash-value" id="dash-day">1</div><div class="dash-sub">Day</div></div>
+      <div class="dash-card"><div class="dash-label">완료 일수</div><div class="dash-value neutral" id="dash-done">0</div><div class="dash-sub">/ 84일</div></div>
     </div>
-
     <div class="progress-card fadein">
-      <div class="progress-header">
-        <span>전체 진행률</span>
-        <strong id="pct-text">0%</strong>
-      </div>
-      <div class="progress-bg">
-        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-      </div>
+      <div class="progress-header"><span>전체 진행률</span><strong id="pct-text">0%</strong></div>
+      <div class="progress-bg"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
     </div>
 
-    <!-- 네비 탭 -->
     <nav class="nav-tabs">
       <button class="nav-tab active" data-tab="mission"   onclick="switchTab('mission')">📋 미션</button>
       <button class="nav-tab"        data-tab="worksheet" onclick="switchTab('worksheet')">📄 연습 안내</button>
@@ -192,16 +101,13 @@
       <button class="nav-tab"        data-tab="calendar"  onclick="switchTab('calendar')">📅 스탬프</button>
     </nav>
 
-    <!-- TAB: 미션 -->
+    <!-- 미션 탭 -->
     <div class="tab-content active" id="tab-mission">
       <div class="sec-label">준비 루틴 — 시작 전 2분</div>
       <div class="card warmup-card fadein">
         <div class="warmup-header">
           <div class="warmup-header-icon">🤲</div>
-          <div>
-            <h3>손 풀기 & 마인드 컨트롤</h3>
-            <p>글씨 쓰기 전 준비 루틴 — 천천히 따라하세요</p>
-          </div>
+          <div><h3>손 풀기 & 마인드 컨트롤</h3><p>글씨 쓰기 전 준비 루틴 — 천천히 따라하세요</p></div>
         </div>
         <div class="warmup-steps" id="warmup-steps"></div>
         <div class="breath-area">
@@ -212,19 +118,13 @@
         </div>
         <div class="quote-area" id="quote-text"></div>
       </div>
-
       <div class="sec-label">주차 선택</div>
       <div class="week-tabs" id="week-tabs"></div>
-
       <div class="sec-label">오늘의 미션</div>
       <div class="card fadein">
-        <div class="mission-header">
-          <h2 id="mission-title">1주차: 선긋기 & 기초 획</h2>
-          <span class="mission-badge" id="mission-badge">Day 1</span>
-        </div>
+        <div class="mission-header"><h2 id="mission-title">1주차: 선긋기 & 기초 획</h2><span class="mission-badge" id="mission-badge">Day 1</span></div>
         <div id="mission-body"></div>
       </div>
-
       <div class="sec-label">10분 타이머</div>
       <div class="card timer-card fadein">
         <div class="timer-display" id="timer-display">10:00</div>
@@ -237,13 +137,13 @@
       </div>
     </div>
 
-    <!-- TAB: 연습 안내 -->
+    <!-- 연습 안내 탭 -->
     <div class="tab-content" id="tab-worksheet">
       <div class="sec-label">오늘의 연습 안내 — A4 용지로 직접 써보세요</div>
       <div class="card fadein" id="worksheet-content"></div>
     </div>
 
-    <!-- TAB: 일지 -->
+    <!-- 일지 탭 -->
     <div class="tab-content" id="tab-journal">
       <div class="card journal-card fadein">
         <div class="field-label">📷 오늘 연습 사진 업로드</div>
@@ -254,20 +154,16 @@
           <div class="upload-filename" id="upload-filename"></div>
         </div>
         <img class="upload-preview" id="upload-preview" alt="연습 사진">
-
         <div class="field-label">✏️ 오늘 발견한 가장 불규칙한 부분</div>
         <textarea id="weakness-input" placeholder="예: 'ㄱ'의 꺾이는 각도가 너무 날카롭고 자음이 모음보다 커서 균형이 무너짐..." rows="3"></textarea>
-
         <div class="ai-header">
           <div class="field-label" style="margin:0">🤖 AI 코치 피드백</div>
           <button class="btn-ai" id="btn-ai" onclick="getAIFeedback()">✨ 피드백 받기</button>
         </div>
         <div class="ai-loading" id="ai-loading">⏳ AI 코치가 글씨를 분석 중입니다...</div>
         <div class="ai-result" id="ai-result"></div>
-
         <div class="field-label">📝 피드백 메모</div>
         <textarea id="feedback-input" placeholder="AI 피드백이 자동 저장되거나, 직접 입력해 보관하세요..." rows="4"></textarea>
-
         <div class="save-row">
           <span class="save-ok" id="save-ok">✅ 저장 완료! (클라우드 동기화됨)</span>
           <button class="btn btn-primary" onclick="saveJournal()">💾 저장 & 스탬프 찍기</button>
@@ -275,7 +171,7 @@
       </div>
     </div>
 
-    <!-- TAB: 캘린더 -->
+    <!-- 캘린더 탭 -->
     <div class="tab-content" id="tab-calendar">
       <div class="card cal-card fadein">
         <div class="cal-nav">
@@ -283,9 +179,7 @@
           <h3 id="cal-title"></h3>
           <button class="cal-nav-btn" onclick="calNext()">›</button>
         </div>
-        <div class="cal-dow">
-          <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
-        </div>
+        <div class="cal-dow"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
         <div class="cal-grid" id="cal-grid"></div>
         <div class="cal-legend">
           <div class="cal-legend-item"><div class="leg-dot" style="background:#2D6A4F"></div>완료</div>
@@ -295,54 +189,48 @@
       </div>
       <div class="cal-summary">완료 <strong id="cal-done-count">0</strong>일 / 84일</div>
     </div>
-
   </div>
 </div>
 
-<!-- Firebase SDK -->
+<!-- Firebase SDK (모듈 방식) -->
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged }
+import { initializeApp }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup,
+         signInWithRedirect, getRedirectResult,
+         signOut, onAuthStateChanged }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-// ── Firebase 설정 ──────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyDALw0KsNkm90aB2aYQYbqTOgOU01z60as",
-  authDomain: "handwriting-coach.firebaseapp.com",
-  projectId: "handwriting-coach",
-  storageBucket: "handwriting-coach.firebasestorage.app",
+  apiKey:            "AIzaSyDALw0KsNkm90aB2aYQYbqTOgOU01z60as",
+  authDomain:        "handwriting-coach.firebaseapp.com",
+  projectId:         "handwriting-coach",
+  storageBucket:     "handwriting-coach.firebasestorage.app",
   messagingSenderId: "370298155695",
-  appId: "1:370298155695:web:458796e0ca6d84ba929a5a"
+  appId:             "1:370298155695:web:458796e0ca6d84ba929a5a"
 };
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ── 전역 노출 ──────────────────────────────────────────
+// 전역 노출
 window._auth = auth;
 window._db   = db;
-window._GoogleAuthProvider = GoogleAuthProvider;
-window._signInWithRedirect = signInWithRedirect;
-window._getRedirectResult  = getRedirectResult;
-window._signOut            = signOut;
-window._doc    = doc;
-window._getDoc = getDoc;
-window._setDoc = setDoc;
-window._updateDoc  = updateDoc;
+window._GoogleAuthProvider  = GoogleAuthProvider;
+window._signInWithPopup     = signInWithPopup;
+window._signInWithRedirect  = signInWithRedirect;
+window._getRedirectResult   = getRedirectResult;
+window._signOut             = signOut;
+window._doc       = doc;
+window._getDoc    = getDoc;
+window._setDoc    = setDoc;
+window._updateDoc = updateDoc;
 window._onSnapshot = onSnapshot;
-// ── 리디렉션 로그인 결과 처리 ──────────────────────────────
-try {
-  const result = await window._getRedirectResult(auth);
-  if (result && result.user) {
-    console.log('redirect login success:', result.user.email);
-  }
-} catch(e) {
-  if (e.code !== 'auth/null-user') console.error('redirect:', e.code);
-}
-// ── 인증 상태 감지 ──────────────────────────────────────
+
+// 인증 상태 감지
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     document.getElementById('login-screen').classList.add('hidden');
@@ -355,6 +243,8 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     document.getElementById('login-screen').classList.remove('hidden');
     document.getElementById('main-app').classList.add('hidden');
+    document.getElementById('login-loading').style.display = 'none';
+    document.getElementById('btn-login').style.display = 'flex';
     window._currentUser = null;
   }
 });
@@ -363,15 +253,15 @@ onAuthStateChanged(auth, async (user) => {
 <script src="js/missions.js"></script>
 <script src="js/app-firebase.js"></script>
 <script>
-  document.getElementById('warmup-steps').innerHTML = WARMUP_STEPS.map((s,i) => `
-    <div class="warmup-step">
-      <div class="step-num">${i+1}</div>
-      <div class="step-body">
-        <h4>${s.icon} ${s.title}</h4>
-        <p>${s.desc}</p>
-        <span class="step-time">⏱ ${s.time}</span>
-      </div>
-    </div>`).join('');
+document.getElementById('warmup-steps').innerHTML = WARMUP_STEPS.map((s,i) => `
+  <div class="warmup-step">
+    <div class="step-num">${i+1}</div>
+    <div class="step-body">
+      <h4>${s.icon} ${s.title}</h4>
+      <p>${s.desc}</p>
+      <span class="step-time">⏱ ${s.time}</span>
+    </div>
+  </div>`).join('');
 </script>
 </body>
 </html>
