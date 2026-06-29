@@ -333,7 +333,15 @@ window._getDoc = getDoc;
 window._setDoc = setDoc;
 window._updateDoc  = updateDoc;
 window._onSnapshot = onSnapshot;
-
+// ── 리디렉션 로그인 결과 처리 ──────────────────────────────
+try {
+  const result = await window._getRedirectResult(auth);
+  if (result && result.user) {
+    console.log('redirect login success:', result.user.email);
+  }
+} catch(e) {
+  if (e.code !== 'auth/null-user') console.error('redirect:', e.code);
+}
 // ── 인증 상태 감지 ──────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
   if (user) {
