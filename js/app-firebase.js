@@ -323,6 +323,10 @@ function loadJournal() {
 }
 
 // ── AI 피드백 ─────────────────────────────────────────────
+// Anthropic API를 브라우저에서 직접 호출할 수 없으므로
+// Cloudflare Worker(중계 서버)를 통해 호출합니다.
+const AI_WORKER_URL = 'https://handwriting-ai-coach.ljcletter.workers.dev';
+
 window.getAIFeedback = async function() {
   const weak = document.getElementById('weakness-input').value.trim();
   const mw = WEEKS[selW], md = mw.days[selD - 1], dn = (selW-1)*7 + selD;
@@ -343,19 +347,21 @@ window.getAIFeedback = async function() {
       : '\n\n(사진 없음 — 오늘 미션 기반 일반 연습 포인트와 격려 메시지를 제공해주세요.)';
     pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **내일의 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
     uc.push({ type: 'text', text: pr });
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(AI_WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: uc }] })
     });
     const data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     const txt = data.content.map(i => i.text || '').join('');
     document.getElementById('ai-result').innerHTML =
       txt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     document.getElementById('ai-result').classList.add('show');
     document.getElementById('feedback-input').value = txt;
   } catch(err) {
-    document.getElementById('ai-result').innerHTML = '피드백 요청 중 오류가 발생했습니다.';
+    console.error('AI 피드백 오류:', err);
+    document.getElementById('ai-result').innerHTML = '피드백 요청 중 오류가 발생했습니다. (' + err.message + ')';
     document.getElementById('ai-result').classList.add('show');
   }
   document.getElementById('ai-loading').classList.remove('show');
