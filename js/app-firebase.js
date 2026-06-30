@@ -287,16 +287,48 @@ function beep() {
 
 // ── 저널 ─────────────────────────────────────────────────
 let uploadedImg = null;
-document.getElementById('file-input').addEventListener('change', e => {
+
+// 휴대폰 카메라 사진은 용량이 매우 커서(수 MB) Anthropic API가 거부할 수 있으므로,
+// 업로드 시 가로/세로 1200px 이하, JPEG 품질 0.8 정도로 자동 축소합니다.
+function resizeImage(file, maxSize = 1200, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxSize) {
+          height = Math.round(height * (maxSize / width));
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = Math.round(width * (maxSize / height));
+          height = maxSize;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+document.getElementById('file-input').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   document.getElementById('upload-filename').textContent = f.name;
-  const r = new FileReader();
-  r.onload = ev => {
-    uploadedImg = ev.target.result;
+  try {
+    uploadedImg = await resizeImage(f);
     const img = document.getElementById('upload-preview');
-    img.src = ev.target.result; img.style.display = 'block';
-  };
-  r.readAsDataURL(f);
+    img.src = uploadedImg; img.style.display = 'block';
+  } catch (err) {
+    console.error('이미지 처리 오류:', err);
+    alert('이미지를 처리하는 중 오류가 발생했습니다. 다른 사진으로 시도해주세요.');
+  }
 });
 
 window.saveJournal = async function() {
