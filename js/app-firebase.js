@@ -1,6 +1,16 @@
+// ── 날짜 헬퍼 (시간대 안전) ────────────────────────────────
+// toISOString()은 UTC 기준이라 한국에서 자정 직후에 하루 어긋날 수 있어 직접 포맷합니다.
+const ymd = d => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+const today = () => ymd(new Date());
+
 // ── Firebase 데이터 관리 ──────────────────────────────────
 let userData = {
-  startDate: new Date().toISOString().split('T')[0],
+  startDate: today(),
   completedDays: {},
   journals: {}
 };
@@ -81,8 +91,7 @@ window.logout = async function() {
   }
 };
 
-// ── 날짜 헬퍼 ─────────────────────────────────────────────
-const today       = () => new Date().toISOString().split('T')[0];
+// ── 날짜 헬퍼 (계속) ─────────────────────────────────────
 const dayFromStart = () => {
   const d = Math.floor((new Date(today()) - new Date(userData.startDate)) / 864e5) + 1;
   return Math.min(Math.max(d, 1), 84);
@@ -412,7 +421,7 @@ function renderCalendar() {
     const d = document.createElement('div'); d.className = 'cal-day empty'; g.appendChild(d);
   }
   for (let d = 1; d <= last.getDate(); d++) {
-    const dt = new Date(calY, calM, d), ds = dt.toISOString().split('T')[0];
+    const dt = new Date(calY, calM, d), ds = ymd(dt);
     const el = document.createElement('div'); el.textContent = d;
     const inC  = dt >= start && dt <= end;
     const isT  = ds === today();
