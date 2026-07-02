@@ -91,6 +91,30 @@ window.logout = async function() {
   }
 };
 
+// ── 진행 초기화 ───────────────────────────────────────────
+// 완료 일수, 일지, 시작일을 모두 초기화하여 Day 1부터 다시 시작합니다.
+// 실수 방지를 위해 두 단계 확인을 거칩니다.
+window.resetProgress = async function() {
+  if (!confirm('⚠️ 정말 처음부터 다시 시작하시겠습니까?\n\n지금까지의 완료 일수, 일지, 스탬프가 모두 삭제되고 오늘이 Day 1이 됩니다.\n(이 작업은 되돌릴 수 없습니다)')) return;
+  if (!confirm('한 번 더 확인합니다.\n정말 초기화하시겠습니까?')) return;
+  userData = { startDate: today(), completedDays: {}, journals: {} };
+  await saveUserData();
+  // 화면 초기화
+  document.getElementById('weakness-input').value = '';
+  document.getElementById('feedback-input').value = '';
+  const preview = document.getElementById('upload-preview');
+  if (preview) { preview.src = ''; preview.style.display = 'none'; }
+  const ai = document.getElementById('ai-result');
+  if (ai) { ai.innerHTML = ''; ai.classList.remove('show'); }
+  const n = dayFromStart(), { w, d } = wkDay(n);
+  selW = w; selD = d;
+  updateDash();
+  initWeekTabs();
+  renderMission();
+  renderCalendar();
+  alert('✅ 초기화 완료! 오늘부터 Day 1입니다.');
+};
+
 // ── 날짜 헬퍼 (계속) ─────────────────────────────────────
 const dayFromStart = () => {
   const d = Math.floor((new Date(today()) - new Date(userData.startDate)) / 864e5) + 1;
