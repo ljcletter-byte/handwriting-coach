@@ -12,7 +12,8 @@ const today = () => ymd(new Date());
 let userData = {
   startDate: today(),
   completedDays: {},
-  journals: {}
+  journals: {},
+  practiceSeconds: {}  // { "2026-06-30": 720, "2026-07-01": 645, ... } — 날짜별 연습 초
 };
 
 function setSyncStatus(status) {
@@ -97,8 +98,15 @@ window.logout = async function() {
 window.resetProgress = async function() {
   if (!confirm('⚠️ 정말 처음부터 다시 시작하시겠습니까?\n\n지금까지의 완료 일수, 일지, 스탬프가 모두 삭제되고 오늘이 Day 1이 됩니다.\n(이 작업은 되돌릴 수 없습니다)')) return;
   if (!confirm('한 번 더 확인합니다.\n정말 초기화하시겠습니까?')) return;
-  userData = { startDate: today(), completedDays: {}, journals: {} };
+  userData = { startDate: today(), completedDays: {}, journals: {}, practiceSeconds: {} };
   await saveUserData();
+  // 스톱워치/타이머도 초기화
+  clearInterval(tIv); tIv = null; tRun = false;
+  clearInterval(swIv); swIv = null;
+  tSec = 600; swSec = 0;
+  document.getElementById('btn-timer').textContent = '▶ 시작';
+  document.getElementById('timer-done').classList.remove('show');
+  tUpd(); swUpd(); practiceUpd();
   // 화면 초기화
   document.getElementById('weakness-input').value = '';
   document.getElementById('feedback-input').value = '';
@@ -270,40 +278,109 @@ function setQuote() {
   document.getElementById('quote-text').innerHTML = QUOTES[dayFromStart() % QUOTES.length];
 }
 
-// ── 타이머 ────────────────────────────────────────────────
+// ── 타이머 + 스톱워치 ────────────────────────────────────
+// 타이머: 10분 카운트다운 (기존)
+// 스톱워치: 실제 연습 시간을 초 단위로 누적 측정 (신규)
+// 시작 버튼을 누르면 둘 다 함께 시작됩니다.
+// 타이머가 0에 도달해도 스톱워치는 계속 진행됩니다.
+// 일시정지·초기화 버튼도 두 기능을 함께 제어합니다.
+// 초기화 또는 저장 시, 스톱워치 시간이 오늘의 practiceSeconds에 자동 누적됩니다.
 let tSec = 600, tRun = false, tIv = null;
+let swSec = 0, swIv = null;
+
 const tFmt = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+const swFmt = s => {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+};
+
 function tUpd() {
   document.getElementById('timer-display').textContent = tFmt(tSec);
   document.getElementById('timer-prog').style.width = (tSec/600*100) + '%';
   document.getElementById('timer-display').className = 'timer-display'
     + (tRun ? ' running' : '') + (tSec <= 60 && tSec > 0 ? ' warning' : '');
 }
+function swUpd() {
+  const el = document.getElementById('stopwatch-display');
+  if (el) el.textContent = swFmt(swSec);
+}
+function practiceUpd() {
+  const t = today();
+  const ps = userData.practiceSeconds || {};
+  const todaySec = (ps[t] || 0) + swSec;
+  const totalSec = Object.values(ps).reduce((a, b) => a + b, 0) + swSec;
+  // 이번 주 = 최근 7일
+  const now = new Date();
+  let weekSec = swSec;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    const key = ymd(d);
+    if (key !== t && ps[key]) weekSec += ps[key];
+  }
+  const fmt = s => {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
+  };
+  const el = document.getElementById('practice-stats');
+  if (el) el.innerHTML =
+    `오늘 <strong>${fmt(todaySec)}</strong> · 이번 주 <strong>${fmt(weekSec)}</strong> · 전체 <strong>${fmt(totalSec)}</strong>`;
+}
+
 window.timerToggle = function() {
-  if (tSec <= 0) return;
-  if (tRun) {
-    clearInterval(tIv); tRun = false;
-    document.getElementById('btn-timer').textContent = '▶ 계속';
+  const btn = document.getElementById('btn-timer');
+  if (tRun || swIv) {
+    // 일시정지
+    clearInterval(tIv); tIv = null; tRun = false;
+    clearInterval(swIv); swIv = null;
+    btn.textContent = '▶ 계속';
   } else {
-    tRun = true; document.getElementById('btn-timer').textContent = '⏸ 일시정지';
-    tIv = setInterval(() => {
-      tSec--; tUpd();
-      if (tSec <= 0) {
-        clearInterval(tIv); tRun = false;
-        document.getElementById('btn-timer').textContent = '▶ 시작';
-        document.getElementById('timer-done').classList.add('show');
-        beep();
-      }
-    }, 1000);
+    // 시작 (또는 계속)
+    btn.textContent = '⏸ 일시정지';
+    // 타이머 (0이면 재시작 안 함, 스톱워치만 진행)
+    if (tSec > 0) {
+      tRun = true;
+      tIv = setInterval(() => {
+        tSec--; tUpd();
+        if (tSec <= 0) {
+          clearInterval(tIv); tIv = null; tRun = false;
+          document.getElementById('timer-done').classList.add('show');
+          beep();
+          // 스톱워치는 계속 돌아감
+        }
+      }, 1000);
+    }
+    // 스톱워치 (항상 진행)
+    swIv = setInterval(() => { swSec++; swUpd(); practiceUpd(); }, 1000);
   }
   tUpd();
 };
+
+// 오늘 연습 시간 누적 저장
+function commitPracticeTime() {
+  if (swSec <= 0) return;
+  if (!userData.practiceSeconds) userData.practiceSeconds = {};
+  const t = today();
+  userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + swSec;
+  swSec = 0;
+  swUpd(); practiceUpd();
+}
+
 window.timerReset = function() {
-  clearInterval(tIv); tRun = false; tSec = 600;
+  clearInterval(tIv); tIv = null; tRun = false;
+  clearInterval(swIv); swIv = null;
+  // 스톱워치 누적 시간을 오늘 기록에 저장
+  commitPracticeTime();
+  saveUserData();
+  tSec = 600;
   document.getElementById('btn-timer').textContent = '▶ 시작';
   document.getElementById('timer-done').classList.remove('show');
   tUpd();
 };
+
 function beep() {
   try {
     const a = new (window.AudioContext || window.webkitAudioContext)();
@@ -368,6 +445,18 @@ window.saveJournal = async function() {
   const t = today();
   if (!userData.journals)     userData.journals = {};
   if (!userData.completedDays) userData.completedDays = {};
+  if (!userData.practiceSeconds) userData.practiceSeconds = {};
+  // 스톱워치가 돌아가고 있으면 정지 후 시간 누적
+  if (swIv) {
+    clearInterval(swIv); swIv = null;
+    clearInterval(tIv); tIv = null; tRun = false;
+    document.getElementById('btn-timer').textContent = '▶ 시작';
+  }
+  if (swSec > 0) {
+    userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + swSec;
+    swSec = 0;
+    swUpd(); practiceUpd();
+  }
   userData.journals[t] = {
     weakness: document.getElementById('weakness-input').value,
     feedback: document.getElementById('feedback-input').value,
@@ -469,4 +558,6 @@ window.initApp = function() {
   loadJournal();
   renderCalendar();
   tUpd();
+  swUpd();
+  practiceUpd();
 };
