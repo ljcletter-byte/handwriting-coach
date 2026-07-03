@@ -64,6 +64,13 @@
     .journal-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
     .btn-view-history{background:#fff;border:1.5px solid #D9D4CB;color:#2D6A4F;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
     .btn-view-history:hover{background:#f5f9f6;border-color:#2D6A4F}
+    .gallery-status{text-align:center;color:#999;font-size:13px;padding:32px 0;line-height:1.6}
+    .gallery-status.hidden{display:none}
+    .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+    .gallery-item{position:relative;cursor:pointer;border-radius:8px;overflow:hidden;aspect-ratio:210/297;background:#f5f5f0}
+    .gallery-item img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .15s}
+    .gallery-item:hover img{opacity:.85}
+    .gallery-item .gallery-date{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font-size:10px;text-align:center;padding:10px 2px 4px}
   </style>
 </head>
 <body>
@@ -131,6 +138,7 @@
       <button class="nav-tab"        data-tab="worksheet" onclick="switchTab('worksheet')">📄 연습 안내</button>
       <button class="nav-tab"        data-tab="journal"   onclick="switchTab('journal')">📓 일지</button>
       <button class="nav-tab"        data-tab="calendar"  onclick="switchTab('calendar')">📅 스탬프</button>
+      <button class="nav-tab"        data-tab="gallery"   onclick="switchTab('gallery')">🖼 사진 모아보기</button>
     </nav>
 
     <!-- 미션 탭 -->
@@ -237,6 +245,15 @@
       </div>
       <div class="cal-summary">완료 <strong id="cal-done-count">0</strong>일 / 84일</div>
     </div>
+
+    <!-- 사진 모아보기 탭 -->
+    <div class="tab-content" id="tab-gallery">
+      <div class="card fadein">
+        <div id="gallery-loading" class="gallery-status">⏳ 사진을 불러오는 중...</div>
+        <div id="gallery-empty" class="gallery-status hidden">아직 저장된 사진이 없어요.<br>일지에 사진을 올리고 저장하면 여기 모여요.</div>
+        <div id="gallery-grid" class="gallery-grid"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -256,7 +273,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup,
          signInWithRedirect, getRedirectResult,
          signOut, onAuthStateChanged }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteDoc }
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteDoc, collection, getDocs }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -285,6 +302,8 @@ window._getDoc    = getDoc;
 window._setDoc    = setDoc;
 window._updateDoc = updateDoc;
 window._deleteDoc = deleteDoc;
+window._collection = collection;
+window._getDocs    = getDocs;
 window._onSnapshot = onSnapshot;
 
 // 인증 상태 감지
