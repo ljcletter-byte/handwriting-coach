@@ -13,7 +13,8 @@ let userData = {
   startDate: today(),
   completedDays: {},
   journals: {},
-  practiceSeconds: {}  // { "2026-06-30": 720, "2026-07-01": 645, ... } — 날짜별 연습 초
+  practiceSeconds: {},  // { "2026-06-30": 720, "2026-07-01": 645, ... } — 날짜별 연습 초
+  onboarded: false      // 첫 사용자 안내를 봤는지
 };
 
 function setSyncStatus(status) {
@@ -882,4 +883,47 @@ window.initApp = function() {
   tUpd();
   swUpd();
   practiceUpd();
+  maybeShowOnboard();
+};
+
+// ── 첫 사용자 안내(온보딩) ────────────────────────────────
+let onboardIdx = 0;
+function maybeShowOnboard() {
+  // 아직 완료한 날이 하나도 없고, 온보딩을 본 적 없으면 표시
+  if (userData.onboarded) return;
+  if (doneCount() > 0) { userData.onboarded = true; saveUserData(); return; }
+  onboardIdx = 0;
+  renderOnboardDots();
+  updateOnboardSlide();
+  document.getElementById('onboard-modal').classList.remove('hidden');
+}
+function renderOnboardDots() {
+  const total = document.querySelectorAll('.onboard-slide').length;
+  const dots = document.getElementById('onboard-dots');
+  let html = '';
+  for (let i = 0; i < total; i++) html += `<div class="onboard-dot${i === 0 ? ' active' : ''}"></div>`;
+  dots.innerHTML = html;
+}
+function updateOnboardSlide() {
+  const slides = document.querySelectorAll('.onboard-slide');
+  const dots = document.querySelectorAll('.onboard-dot');
+  slides.forEach((s, i) => s.classList.toggle('active', i === onboardIdx));
+  dots.forEach((dot, i) => dot.classList.toggle('active', i === onboardIdx));
+  const isLast = onboardIdx === slides.length - 1;
+  document.getElementById('onboard-next').textContent = isLast ? '시작하기' : '다음';
+  document.getElementById('onboard-skip').style.visibility = isLast ? 'hidden' : 'visible';
+}
+window.onboardNext = function() {
+  const total = document.querySelectorAll('.onboard-slide').length;
+  if (onboardIdx < total - 1) {
+    onboardIdx++;
+    updateOnboardSlide();
+  } else {
+    closeOnboard();
+  }
+};
+window.closeOnboard = function() {
+  document.getElementById('onboard-modal').classList.add('hidden');
+  userData.onboarded = true;
+  saveUserData();
 };
