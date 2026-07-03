@@ -472,14 +472,15 @@ window.saveJournal = async function() {
     swSec = 0;
     swUpd(); practiceUpd();
   }
-  // 사진이 있으면 Storage에 업로드 (같은 날짜 파일은 덮어써서 용량이 쌓이지 않음)
-  let photoUrl = (userData.journals[t] && userData.journals[t].photoUrl) || null;
+  // 사진이 있으면 별도 문서(users/{uid}/journalPhotos/{날짜})에 저장
+  // 메인 데이터 문서에 직접 넣지 않는 이유: 84일치 사진이 쌓이면 Firestore의
+  // "문서당 1MB 제한"을 넘을 수 있어서, 날짜별로 분리된 작은 문서에 따로 저장합니다.
+  let hasPhoto = (userData.journals[t] && userData.journals[t].hasPhoto) || false;
   if (uploadedThumb && window._currentUser) {
     try {
-      const path = `journal-photos/${window._currentUser.uid}/${t}.jpg`;
-      const ref = window._storageRef(window._storage, path);
-      await window._uploadString(ref, uploadedThumb, 'data_url');
-      photoUrl = await window._getDownloadURL(ref);
+      const photoRef = window._doc(window._db, 'users', window._currentUser.uid, 'journalPhotos', t);
+      await window._setDoc(photoRef, { photo: uploadedThumb, savedAt: new Date().toISOString() });
+      hasPhoto = true;
       uploadedThumb = null;
     } catch (e) {
       console.error('사진 저장 오류:', e);
@@ -489,7 +490,7 @@ window.saveJournal = async function() {
   userData.journals[t] = {
     weakness: document.getElementById('weakness-input').value,
     feedback: document.getElementById('feedback-input').value,
-    photoUrl: photoUrl,
+    hasPhoto: hasPhoto,
     savedAt:  new Date().toISOString()
   };
   userData.completedDays[t] = true;
@@ -598,7 +599,7 @@ function formatFeedbackHtml(s) {
   return escHtml(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 }
 
-window.showJournalDetail = function(ds) {
+window.showJournalDetail = async function(ds) {
   const j   = (userData.journals || {})[ds] || {};
   const sec = (userData.practiceSeconds || {})[ds] || 0;
 
@@ -616,10 +617,10 @@ window.showJournalDetail = function(ds) {
   document.getElementById('modal-body').innerHTML = `
     <div class="modal-date">${dateLabel} · Day ${dn}/84 (${w}주차 ${d}일차)</div>
     <div class="modal-title">${mw ? '✍️ ' + mw.title : ''}</div>
-    ${j.photoUrl ? `
-    <div class="modal-section">
+    ${j.hasPhoto ? `
+    <div class="modal-section" id="modal-photo-section">
       <div class="modal-section-label">📷 그날 연습 사진</div>
-      <img src="${j.photoUrl}" alt="그날의 연습 사진" style="width:100%;border-radius:8px;display:block">
+      <div class="modal-section-body empty" id="modal-photo-body">⏳ 사진 불러오는 중...</div>
     </div>` : ''}
     <div class="modal-section">
       <div class="modal-section-label">⏱ 실제 연습 시간</div>
@@ -635,6 +636,25 @@ window.showJournalDetail = function(ds) {
     </div>
   `;
   document.getElementById('journal-modal').classList.remove('hidden');
+
+  // 사진은 별도 문서라 모달을 연 뒤 비동기로 불러옵니다.
+  if (j.hasPhoto && window._currentUser) {
+    try {
+      const photoRef = window._doc(window._db, 'users', window._currentUser.uid, 'journalPhotos', ds);
+      const snap = await window._getDoc(photoRef);
+      const body = document.getElementById('modal-photo-body');
+      if (!body) return; // 모달이 이미 닫힌 경우
+      if (snap.exists() && snap.data().photo) {
+        body.outerHTML = `<img src="${snap.data().photo}" alt="그날의 연습 사진" style="width:100%;border-radius:8px;display:block">`;
+      } else {
+        body.textContent = '사진을 불러올 수 없어요';
+      }
+    } catch (e) {
+      console.error('사진 불러오기 오류:', e);
+      const body = document.getElementById('modal-photo-body');
+      if (body) body.textContent = '사진을 불러오는 중 오류가 발생했어요';
+    }
+  }
 };
 
 window.closeJournalModal = function() {
