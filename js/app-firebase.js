@@ -144,6 +144,7 @@ window.switchTab = function(name) {
   document.querySelector(`[data-tab="${name}"]`).classList.add('active');
   if (name === 'calendar') renderCalendar();
   if (name === 'gallery') renderGallery();
+  if (name === 'stats') renderStats();
 };
 
 // ── 대시보드 ──────────────────────────────────────────────
@@ -735,6 +736,84 @@ function renderGalleryGrid(items) {
         <div class="gallery-date">${label}</div>
       </div>`;
   }).join('');
+}
+
+// ── 통계 대시보드 ─────────────────────────────────────────
+function fmtHM(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return `${h}시간 ${m}분`;
+  return `${m}분`;
+}
+
+function computeStreak() {
+  const cd = userData.completedDays || {};
+  let d = new Date();
+  // 오늘 아직 안 했어도 어제까지 이어져 있으면 스트릭 유지 (오늘 할 시간이 남아있으니까)
+  if (!cd[ymd(d)]) d.setDate(d.getDate() - 1);
+  let streak = 0;
+  while (cd[ymd(d)]) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+function renderStats() {
+  const cd = userData.completedDays  || {};
+  const ps = userData.practiceSeconds || {};
+  const start = new Date(userData.startDate || today());
+
+  // 총 연습시간 / 하루 평균
+  const totalSec = Object.values(ps).reduce((a, b) => a + b, 0);
+  const daysWithTime = Object.values(ps).filter(s => s > 0).length;
+  document.getElementById('stat-total-time').textContent = totalSec > 0 ? fmtHM(totalSec) : '0분';
+  document.getElementById('stat-avg-time').textContent = daysWithTime ? Math.round(totalSec / 60 / daysWithTime) + '분' : '-';
+
+  // 연속 기록
+  document.getElementById('stat-streak').textContent = computeStreak() + '일';
+
+  // 이번 주(현재 주차) 연습시간
+  const n = Math.min(Math.max(dayFromStart(), 1), 84);
+  const { w: curW } = wkDay(n);
+  const curWeekStart = new Date(start); curWeekStart.setDate(curWeekStart.getDate() + (curW - 1) * 7);
+  let weekSec = 0;
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(curWeekStart); dt.setDate(dt.getDate() + i);
+    weekSec += ps[ymd(dt)] || 0;
+  }
+  document.getElementById('stat-week-time').textContent = Math.round(weekSec / 60) + '분';
+
+  // 주차별 연습시간 막대그래프 (1~12주)
+  const weekMin = [];
+  for (let wi = 0; wi < 12; wi++) {
+    const ws = new Date(start); ws.setDate(ws.getDate() + wi * 7);
+    let sec = 0;
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(ws); dt.setDate(dt.getDate() + i);
+      sec += ps[ymd(dt)] || 0;
+    }
+    weekMin.push(Math.round(sec / 60));
+  }
+  const maxWeekMin = Math.max(...weekMin, 1);
+  document.getElementById('week-chart').innerHTML = weekMin.map((m, i) => `
+    <div class="bar-col${i + 1 === curW ? ' today' : ''}">
+      <div class="bar-value">${m > 0 ? m + '분' : ''}</div>
+      <div class="bar" style="height:${m > 0 ? Math.max(m / maxWeekMin * 100, 4) : 0}%"></div>
+      <div class="bar-label">${i + 1}주</div>
+    </div>`).join('');
+
+  // 요일별 참여 현황 (완료한 날 기준, 일~토)
+  const dowCount = [0, 0, 0, 0, 0, 0, 0];
+  Object.keys(cd).forEach(ds => { if (cd[ds]) dowCount[new Date(ds).getDay()]++; });
+  const maxDow = Math.max(...dowCount, 1);
+  const dowLabels = ['일', '월', '화', '수', '목', '금', '토'];
+  const todayDow = new Date().getDay();
+  document.getElementById('dow-chart').innerHTML = dowCount.map((c, i) => `
+    <div class="bar-col${i === todayDow ? ' today' : ''}">
+      <div class="bar-value">${c > 0 ? c + '회' : ''}</div>
+      <div class="bar" style="height:${c > 0 ? Math.max(c / maxDow * 100, 4) : 0}%"></div>
+      <div class="bar-label">${dowLabels[i]}</div>
+    </div>`).join('');
 }
 
 // ── 앱 초기화 ─────────────────────────────────────────────
