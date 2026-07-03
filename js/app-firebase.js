@@ -111,7 +111,9 @@ window.resetProgress = async function() {
   document.getElementById('weakness-input').value = '';
   document.getElementById('feedback-input').value = '';
   const preview = document.getElementById('upload-preview');
-  if (preview) { preview.src = ''; preview.style.display = 'none'; }
+  if (preview) { preview.src = ''; preview.style.display = 'none'; preview.classList.add('collapsed'); }
+  const hint = document.getElementById('upload-preview-hint');
+  if (hint) hint.classList.remove('show');
   const ai = document.getElementById('ai-result');
   if (ai) { ai.innerHTML = ''; ai.classList.remove('show'); }
   const n = dayFromStart(), { w, d } = wkDay(n);
@@ -428,13 +430,18 @@ function resizeImage(file, maxSize = 1200, quality = 0.8) {
   });
 }
 
+window.togglePreviewSize = function() {
+  document.getElementById('upload-preview').classList.toggle('collapsed');
+};
+
 document.getElementById('file-input').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   document.getElementById('upload-filename').textContent = f.name;
   try {
     uploadedImg = await resizeImage(f);
     const img = document.getElementById('upload-preview');
-    img.src = uploadedImg; img.style.display = 'block';
+    img.src = uploadedImg; img.style.display = 'block'; img.classList.add('collapsed');
+    document.getElementById('upload-preview-hint').classList.add('show');
   } catch (err) {
     console.error('이미지 처리 오류:', err);
     alert('이미지를 처리하는 중 오류가 발생했습니다. 다른 사진으로 시도해주세요.');
