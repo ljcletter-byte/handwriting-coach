@@ -35,6 +35,10 @@
     .hidden{display:none!important}
     .cal-day.clickable{cursor:pointer;transition:opacity .15s}
     .cal-day.clickable:hover{opacity:.8}
+    .cal-day-num{display:block}
+    .cal-day-min{display:block;font-size:9px;font-weight:600;opacity:.85;margin-top:2px}
+    .cal-day.done .cal-day-min{color:#fff}
+    .cal-day.today .cal-day-min,.cal-day.challenge .cal-day-min{color:#2D6A4F}
     .modal-overlay{position:fixed;inset:0;background:rgba(30,28,22,.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
     .modal-box{background:#fff;border-radius:16px;padding:28px 24px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.25)}
     .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#999;line-height:1;padding:4px}
@@ -56,6 +60,9 @@
       .journal-grid{grid-template-columns:minmax(240px,360px) 1fr;align-items:start;gap:28px}
       .journal-col-photo{position:sticky;top:16px}
     }
+    .journal-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .btn-view-history{background:#fff;border:1.5px solid #D9D4CB;color:#2D6A4F;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+    .btn-view-history:hover{background:#f5f9f6;border-color:#2D6A4F}
   </style>
 </head>
 <body>
@@ -175,6 +182,10 @@
     <!-- 일지 탭 -->
     <div class="tab-content" id="tab-journal">
       <div class="card journal-card fadein">
+        <div class="journal-top-row">
+          <div class="field-label" style="margin:0">📓 오늘의 일지</div>
+          <button class="btn-view-history" onclick="switchTab('calendar')">📖 지난 기록 보기</button>
+        </div>
         <div class="journal-grid">
           <div class="journal-col-photo">
             <div class="field-label">📷 오늘 연습 사진 업로드</div>
