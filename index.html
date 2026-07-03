@@ -45,6 +45,10 @@
     .modal-section-label{font-size:12px;font-weight:600;color:var(--text2,#888);margin-bottom:6px}
     .modal-section-body{font-size:14px;line-height:1.65;color:#333;background:#f7f7f2;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word}
     .modal-section-body.empty{color:#aaa}
+    .upload-preview{cursor:pointer;transition:max-height .25s ease;object-fit:cover;object-position:top}
+    .upload-preview.collapsed{max-height:150px}
+    .upload-preview-hint{font-size:11px;color:#999;text-align:center;margin:6px 0 16px;display:none;cursor:pointer}
+    .upload-preview-hint.show{display:block}
   </style>
 </head>
 <body>
@@ -171,7 +175,8 @@
           <p>클릭하여 사진 선택 — 업로드 시 AI 코치 자동 분석</p>
           <div class="upload-filename" id="upload-filename"></div>
         </div>
-        <img class="upload-preview" id="upload-preview" alt="연습 사진">
+        <img class="upload-preview collapsed" id="upload-preview" alt="연습 사진" onclick="togglePreviewSize()">
+        <div class="upload-preview-hint" id="upload-preview-hint" onclick="togglePreviewSize()">👆 사진을 클릭하면 크게/작게 볼 수 있어요</div>
         <div class="field-label">✏️ 오늘 발견한 가장 불규칙한 부분</div>
         <textarea id="weakness-input" placeholder="예: 'ㄱ'의 꺾이는 각도가 너무 날카롭고 자음이 모음보다 커서 균형이 무너짐..." rows="3"></textarea>
         <div class="ai-header">
