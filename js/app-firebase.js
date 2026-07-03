@@ -114,6 +114,7 @@ window.resetProgress = async function() {
   if (preview) { preview.src = ''; preview.style.display = 'none'; preview.classList.add('collapsed'); }
   uploadedImg = null;
   uploadedThumb = null;
+  galleryCache = null;
   const hint = document.getElementById('upload-preview-hint');
   if (hint) hint.classList.remove('show');
   const ai = document.getElementById('ai-result');
@@ -142,6 +143,7 @@ window.switchTab = function(name) {
   document.getElementById('tab-' + name).classList.add('active');
   document.querySelector(`[data-tab="${name}"]`).classList.add('active');
   if (name === 'calendar') renderCalendar();
+  if (name === 'gallery') renderGallery();
 };
 
 // ── 대시보드 ──────────────────────────────────────────────
@@ -479,9 +481,16 @@ window.saveJournal = async function() {
   if (uploadedThumb && window._currentUser) {
     try {
       const photoRef = window._doc(window._db, 'users', window._currentUser.uid, 'journalPhotos', t);
-      await window._setDoc(photoRef, { photo: uploadedThumb, savedAt: new Date().toISOString() });
+      const savedPhoto = uploadedThumb;
+      await window._setDoc(photoRef, { photo: savedPhoto, savedAt: new Date().toISOString() });
       hasPhoto = true;
       uploadedThumb = null;
+      // 갤러리 캐시에도 반영 (다시 조회하지 않아도 최신 사진이 바로 보이도록)
+      if (galleryCache) {
+        const idx = galleryCache.findIndex(it => it.ds === t);
+        if (idx >= 0) galleryCache[idx].photo = savedPhoto;
+        else { galleryCache.unshift({ ds: t, photo: savedPhoto }); galleryCache.sort((a, b) => b.ds.localeCompare(a.ds)); }
+      }
     } catch (e) {
       console.error('사진 저장 오류:', e);
       // 사진 저장에 실패해도 일지 텍스트 저장은 계속 진행
@@ -638,7 +647,14 @@ window.showJournalDetail = async function(ds) {
   document.getElementById('journal-modal').classList.remove('hidden');
 
   // 사진은 별도 문서라 모달을 연 뒤 비동기로 불러옵니다.
+  // (갤러리에서 이미 불러온 사진이면 캐시에서 바로 꺼내 재조회를 건너뜁니다)
   if (j.hasPhoto && window._currentUser) {
+    const cached = galleryCache && galleryCache.find(it => it.ds === ds);
+    if (cached) {
+      const body = document.getElementById('modal-photo-body');
+      if (body) body.outerHTML = `<img src="${cached.photo}" alt="그날의 연습 사진" style="width:100%;border-radius:8px;display:block">`;
+      return;
+    }
     try {
       const photoRef = window._doc(window._db, 'users', window._currentUser.uid, 'journalPhotos', ds);
       const snap = await window._getDoc(photoRef);
@@ -660,6 +676,66 @@ window.showJournalDetail = async function(ds) {
 window.closeJournalModal = function() {
   document.getElementById('journal-modal').classList.add('hidden');
 };
+
+// ── 사진 모아보기 (갤러리) ────────────────────────────────
+// 한 번 불러온 사진은 galleryCache에 저장해두고, 탭을 다시 열어도
+// Firestore를 재조회하지 않고 캐시를 재사용합니다 (읽기 횟수/속도 절약).
+let galleryCache = null; // [{ ds, photo }, ...] — 최신순 정렬
+
+async function renderGallery() {
+  const loadingEl = document.getElementById('gallery-loading');
+  const emptyEl   = document.getElementById('gallery-empty');
+  const gridEl    = document.getElementById('gallery-grid');
+
+  if (galleryCache) {
+    renderGalleryGrid(galleryCache);
+    return;
+  }
+  if (!window._currentUser) return;
+
+  loadingEl.classList.remove('hidden');
+  emptyEl.classList.add('hidden');
+  gridEl.innerHTML = '';
+
+  try {
+    const colRef = window._collection(window._db, 'users', window._currentUser.uid, 'journalPhotos');
+    const snap = await window._getDocs(colRef);
+    const items = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if (data && data.photo) items.push({ ds: d.id, photo: data.photo });
+    });
+    items.sort((a, b) => b.ds.localeCompare(a.ds)); // 최신 날짜 먼저
+    galleryCache = items;
+    renderGalleryGrid(items);
+  } catch (e) {
+    console.error('갤러리 로드 오류:', e);
+    loadingEl.textContent = '사진을 불러오는 중 오류가 발생했어요';
+  }
+}
+
+function renderGalleryGrid(items) {
+  const loadingEl = document.getElementById('gallery-loading');
+  const emptyEl   = document.getElementById('gallery-empty');
+  const gridEl    = document.getElementById('gallery-grid');
+
+  loadingEl.classList.add('hidden');
+  if (items.length === 0) {
+    emptyEl.classList.remove('hidden');
+    gridEl.innerHTML = '';
+    return;
+  }
+  emptyEl.classList.add('hidden');
+  gridEl.innerHTML = items.map(({ ds, photo }) => {
+    const dt = new Date(ds);
+    const label = `${dt.getMonth() + 1}/${dt.getDate()}`;
+    return `
+      <div class="gallery-item" onclick="showJournalDetail('${ds}')">
+        <img src="${photo}" alt="${label} 연습 사진" loading="lazy">
+        <div class="gallery-date">${label}</div>
+      </div>`;
+  }).join('');
+}
 
 // ── 앱 초기화 ─────────────────────────────────────────────
 window.initApp = function() {
