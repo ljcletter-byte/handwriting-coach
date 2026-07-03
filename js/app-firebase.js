@@ -112,6 +112,8 @@ window.resetProgress = async function() {
   document.getElementById('feedback-input').value = '';
   const preview = document.getElementById('upload-preview');
   if (preview) { preview.src = ''; preview.style.display = 'none'; preview.classList.add('collapsed'); }
+  uploadedImg = null;
+  uploadedThumb = null;
   const hint = document.getElementById('upload-preview-hint');
   if (hint) hint.classList.remove('show');
   const ai = document.getElementById('ai-result');
@@ -398,7 +400,8 @@ function beep() {
 }
 
 // ── 저널 ─────────────────────────────────────────────────
-let uploadedImg = null;
+let uploadedImg = null;   // AI 분석용 (1200px, 고화질)
+let uploadedThumb = null; // Firebase Storage 저장용 (700px, 압축 — 용량 최소화)
 
 // 휴대폰 카메라 사진은 용량이 매우 커서(수 MB) Anthropic API가 거부할 수 있으므로,
 // 업로드 시 가로/세로 1200px 이하, JPEG 품질 0.8 정도로 자동 축소합니다.
@@ -438,7 +441,8 @@ document.getElementById('file-input').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   document.getElementById('upload-filename').textContent = f.name;
   try {
-    uploadedImg = await resizeImage(f);
+    uploadedImg   = await resizeImage(f, 1200, 0.8); // AI 분석용
+    uploadedThumb = await resizeImage(f, 700, 0.6);  // 저장용 (용량 절약)
     const img = document.getElementById('upload-preview');
     img.src = uploadedImg; img.style.display = 'block'; img.classList.add('collapsed');
     document.getElementById('upload-preview-hint').classList.add('show');
@@ -449,6 +453,10 @@ document.getElementById('file-input').addEventListener('change', async e => {
 });
 
 window.saveJournal = async function() {
+  const btn = document.getElementById('btn-save');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = uploadedThumb ? '📤 사진 저장 중...' : '💾 저장 중...';
   const t = today();
   if (!userData.journals)     userData.journals = {};
   if (!userData.completedDays) userData.completedDays = {};
@@ -464,14 +472,31 @@ window.saveJournal = async function() {
     swSec = 0;
     swUpd(); practiceUpd();
   }
+  // 사진이 있으면 Storage에 업로드 (같은 날짜 파일은 덮어써서 용량이 쌓이지 않음)
+  let photoUrl = (userData.journals[t] && userData.journals[t].photoUrl) || null;
+  if (uploadedThumb && window._currentUser) {
+    try {
+      const path = `journal-photos/${window._currentUser.uid}/${t}.jpg`;
+      const ref = window._storageRef(window._storage, path);
+      await window._uploadString(ref, uploadedThumb, 'data_url');
+      photoUrl = await window._getDownloadURL(ref);
+      uploadedThumb = null;
+    } catch (e) {
+      console.error('사진 저장 오류:', e);
+      // 사진 저장에 실패해도 일지 텍스트 저장은 계속 진행
+    }
+  }
   userData.journals[t] = {
     weakness: document.getElementById('weakness-input').value,
     feedback: document.getElementById('feedback-input').value,
+    photoUrl: photoUrl,
     savedAt:  new Date().toISOString()
   };
   userData.completedDays[t] = true;
   await saveUserData();
   updateDash(); renderCalendar();
+  btn.disabled = false;
+  btn.textContent = origText;
   const ok = document.getElementById('save-ok');
   ok.classList.add('show');
   setTimeout(() => ok.classList.remove('show'), 3000);
@@ -591,6 +616,11 @@ window.showJournalDetail = function(ds) {
   document.getElementById('modal-body').innerHTML = `
     <div class="modal-date">${dateLabel} · Day ${dn}/84 (${w}주차 ${d}일차)</div>
     <div class="modal-title">${mw ? '✍️ ' + mw.title : ''}</div>
+    ${j.photoUrl ? `
+    <div class="modal-section">
+      <div class="modal-section-label">📷 그날 연습 사진</div>
+      <img src="${j.photoUrl}" alt="그날의 연습 사진" style="width:100%;border-radius:8px;display:block">
+    </div>` : ''}
     <div class="modal-section">
       <div class="modal-section-label">⏱ 실제 연습 시간</div>
       <div class="modal-section-body${timeLabel ? '' : ' empty'}">${timeLabel || '기록된 연습 시간이 없어요'}</div>
