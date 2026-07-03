@@ -256,10 +256,8 @@ import { getAuth, GoogleAuthProvider, signInWithPopup,
          signInWithRedirect, getRedirectResult,
          signOut, onAuthStateChanged }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot }
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteDoc }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { getStorage, ref as storageRef, uploadString, getDownloadURL }
-  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey:            "AIzaSyCWe75Zimv-JdRwjF68EJaKyak6ocVZRvk",
@@ -273,12 +271,10 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
-const storage = getStorage(app);
 
 // 전역 노출
 window._auth = auth;
 window._db   = db;
-window._storage = storage;
 window._GoogleAuthProvider  = GoogleAuthProvider;
 window._signInWithPopup     = signInWithPopup;
 window._signInWithRedirect  = signInWithRedirect;
@@ -288,10 +284,8 @@ window._doc       = doc;
 window._getDoc    = getDoc;
 window._setDoc    = setDoc;
 window._updateDoc = updateDoc;
+window._deleteDoc = deleteDoc;
 window._onSnapshot = onSnapshot;
-window._storageRef     = storageRef;
-window._uploadString   = uploadString;
-window._getDownloadURL = getDownloadURL;
 
 // 인증 상태 감지
 onAuthStateChanged(auth, async (user) => {
