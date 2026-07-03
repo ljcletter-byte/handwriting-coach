@@ -719,8 +719,10 @@ function renderGalleryGrid(items) {
   const loadingEl = document.getElementById('gallery-loading');
   const emptyEl   = document.getElementById('gallery-empty');
   const gridEl    = document.getElementById('gallery-grid');
+  const compareCard = document.getElementById('gallery-compare-card');
 
   loadingEl.classList.add('hidden');
+  renderCompare(items, compareCard);
   if (items.length === 0) {
     emptyEl.classList.remove('hidden');
     gridEl.innerHTML = '';
@@ -736,6 +738,27 @@ function renderGalleryGrid(items) {
         <div class="gallery-date">${label}</div>
       </div>`;
   }).join('');
+}
+
+// items는 최신순 정렬 상태 — 맨 앞이 최근 사진, 맨 뒤가 가장 오래된(첫날) 사진
+function renderCompare(items, compareCard) {
+  if (!compareCard) compareCard = document.getElementById('gallery-compare-card');
+  if (items.length < 2) { compareCard.style.display = 'none'; return; }
+
+  const latest = items[0];
+  const first  = items[items.length - 1];
+  const fmt = ds => { const d = new Date(ds); return `${d.getMonth() + 1}/${d.getDate()}`; };
+
+  document.getElementById('compare-row').innerHTML = `
+    <div class="compare-col">
+      <img src="${first.photo}" alt="첫날 연습 사진">
+      <div class="compare-label"><strong>시작</strong> · ${fmt(first.ds)}</div>
+    </div>
+    <div class="compare-col">
+      <img src="${latest.photo}" alt="최근 연습 사진">
+      <div class="compare-label"><strong>최근</strong> · ${fmt(latest.ds)}</div>
+    </div>`;
+  compareCard.style.display = '';
 }
 
 // ── 통계 대시보드 ─────────────────────────────────────────
@@ -814,6 +837,36 @@ function renderStats() {
       <div class="bar" style="height:${c > 0 ? Math.max(c / maxDow * 100, 4) : 0}%"></div>
       <div class="bar-label">${dowLabels[i]}</div>
     </div>`).join('');
+
+  // 달성 배지 (누적 완료 일수 기준 — 스트릭이 끊겨도 한 번 딴 배지는 유지)
+  const MILESTONES = [
+    { days: 3,  icon: '🌱', label: '새싹' },
+    { days: 7,  icon: '🔥', label: '일주일' },
+    { days: 14, icon: '⭐', label: '2주 완주' },
+    { days: 30, icon: '💪', label: '한 달' },
+    { days: 50, icon: '🏆', label: '50일' },
+    { days: 84, icon: '🎉', label: '전체 완주' }
+  ];
+  const totalDone = doneCount();
+  document.getElementById('badge-grid').innerHTML = MILESTONES.map(m => `
+    <div class="badge-item${totalDone >= m.days ? ' earned' : ''}">
+      <div class="badge-icon">${m.icon}</div>
+      <div class="badge-label">${m.label}<br>${m.days}일</div>
+    </div>`).join('');
+
+  // 주차 완주 배지 (해당 주 7일을 모두 완료했을 때)
+  const weekBadges = [];
+  for (let wi = 0; wi < 12; wi++) {
+    const ws = new Date(start); ws.setDate(ws.getDate() + wi * 7);
+    let allDone = true;
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(ws); dt.setDate(dt.getDate() + i);
+      if (!cd[ymd(dt)]) { allDone = false; break; }
+    }
+    weekBadges.push(allDone);
+  }
+  document.getElementById('week-badge-row').innerHTML = weekBadges.map((done, i) => `
+    <div class="week-badge${done ? ' earned' : ''}" title="${i + 1}주차${done ? ' 완주!' : ''}">${i + 1}</div>`).join('');
 }
 
 // ── 앱 초기화 ─────────────────────────────────────────────
