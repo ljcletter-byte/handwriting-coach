@@ -71,6 +71,16 @@
     .gallery-item img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .15s}
     .gallery-item:hover img{opacity:.85}
     .gallery-item .gallery-date{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font-size:10px;text-align:center;padding:10px 2px 4px}
+    .guide-intro{display:flex;gap:14px;align-items:flex-start;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #eee}
+    .guide-intro-icon{font-size:30px;line-height:1}
+    .guide-intro h3{font-size:16px;font-weight:600;color:#2D6A4F;margin:0 0 6px}
+    .guide-intro p{font-size:13px;color:#666;line-height:1.6;margin:0}
+    .guide-section{margin-bottom:20px}
+    .guide-section-title{font-size:14px;font-weight:600;color:#2D6A4F;margin-bottom:8px}
+    .guide-list{margin:0;padding-left:20px;font-size:13.5px;line-height:1.8;color:#333}
+    .guide-list li{margin-bottom:2px}
+    .guide-list-warn li{color:#a94442}
+    .guide-tip{background:#f5f9f6;border:1px solid #D8F3DC;border-radius:10px;padding:14px 16px;font-size:13px;color:#2D6A4F;line-height:1.6}
   </style>
 </head>
 <body>
@@ -139,6 +149,7 @@
       <button class="nav-tab"        data-tab="journal"   onclick="switchTab('journal')">📓 일지</button>
       <button class="nav-tab"        data-tab="calendar"  onclick="switchTab('calendar')">📅 스탬프</button>
       <button class="nav-tab"        data-tab="gallery"   onclick="switchTab('gallery')">🖼 사진 모아보기</button>
+      <button class="nav-tab"        data-tab="posture"   onclick="switchTab('posture')">🧘 자세 가이드</button>
     </nav>
 
     <!-- 미션 탭 -->
@@ -252,6 +263,72 @@
         <div id="gallery-loading" class="gallery-status">⏳ 사진을 불러오는 중...</div>
         <div id="gallery-empty" class="gallery-status hidden">아직 저장된 사진이 없어요.<br>일지에 사진을 올리고 저장하면 여기 모여요.</div>
         <div id="gallery-grid" class="gallery-grid"></div>
+      </div>
+    </div>
+
+    <!-- 자세 가이드 탭 -->
+    <div class="tab-content" id="tab-posture">
+      <div class="card fadein guide-card">
+        <div class="guide-intro">
+          <div class="guide-intro-icon">🧘</div>
+          <div>
+            <h3>바른 자세가 절반입니다</h3>
+            <p>글씨체보다 먼저 바뀌어야 하는 건 자세예요. 자세가 흐트러지면 아무리 연습해도 손목과 손가락에 힘이 들어가고, 그게 그대로 삐뚤빼뚤한 글씨로 나타납니다.</p>
+          </div>
+        </div>
+
+        <div class="guide-section">
+          <div class="guide-section-title">🪑 앉는 자세</div>
+          <ul class="guide-list">
+            <li>등을 곧게 펴고 허리는 의자 등받이에 붙이기</li>
+            <li>양발은 바닥에 자연스럽게 닿게</li>
+            <li>팔꿈치는 책상 위에, 팔 각도는 90도 정도</li>
+            <li>눈과 종이 사이 거리는 30cm 이상 유지</li>
+          </ul>
+        </div>
+
+        <div class="guide-section">
+          <div class="guide-section-title">📐 종이(공책) 각도</div>
+          <ul class="guide-list">
+            <li>오른손잡이는 종이를 <strong>시계 반대 방향으로 15~20도</strong> 정도 기울이기</li>
+            <li>왼손잡이는 반대로 <strong>시계 방향</strong>으로 기울이기</li>
+            <li>줄을 따라 쓸 때 손목이 아니라 <strong>종이가 움직인다</strong>고 생각하기 — 한 줄 다 쓰면 종이를 살짝 밀어 올리세요</li>
+          </ul>
+        </div>
+
+        <div class="guide-section">
+          <div class="guide-section-title">✏️ 연필 잡는 법</div>
+          <ul class="guide-list">
+            <li>엄지·검지·중지 세 손가락으로 <strong>삼각형 모양</strong>으로 잡기</li>
+            <li>연필심에서 <strong>2~3cm 위쪽</strong>을 잡기 (너무 가까이 잡으면 시야도 가리고 힘이 더 들어감)</li>
+            <li>연필과 종이 각도는 45~60도 정도</li>
+            <li>쥐는 힘은 <strong>연필이 손에서 스르륵 빠지지 않을 정도</strong>면 충분 — 손톱이 하얗게 될 만큼 꽉 쥐고 있다면 너무 센 것</li>
+          </ul>
+        </div>
+
+        <div class="guide-section">
+          <div class="guide-section-title">🤲 손목에 힘 빼는 방법</div>
+          <ul class="guide-list">
+            <li>글씨는 <strong>손목이 아니라 손가락과 팔 전체</strong>로 쓰는 것 — 손목을 꺾어서 쓰면 삐뚤어지고 금방 피로해집니다</li>
+            <li>손목을 책상에 살짝 얹어서 <strong>지지대처럼</strong> 사용하기 (붕 뜬 상태로 쓰지 않기)</li>
+            <li>10분 연습 중간에라도 손이 뻐근하면 잠깐 멈추고 손목을 위아래·좌우로 가볍게 돌려주기</li>
+            <li>연습 시작 전 미션 탭의 <strong>"손 풀기 & 마인드 컨트롤"</strong> 루틴으로 미리 긴장을 풀어주면 훨씬 편해집니다</li>
+          </ul>
+        </div>
+
+        <div class="guide-section">
+          <div class="guide-section-title">🙅 자주 하는 실수</div>
+          <ul class="guide-list guide-list-warn">
+            <li>연필을 너무 꽉 쥐기 — 손가락이 아니라 손목·팔뚝까지 뻣뻣해짐</li>
+            <li>종이를 고정해둔 채 손목만 꺾어서 글자 쓰기</li>
+            <li>구부정하게 엎드려서 오래 앉아있기</li>
+            <li>연필을 세로로 너무 세워 잡기 (시야를 가리고 각도가 무너짐)</li>
+          </ul>
+        </div>
+
+        <div class="guide-tip">
+          💡 처음부터 다 고치려 하지 마세요. 이번 주는 <strong>자세와 종이 각도</strong> 딱 하나만 신경 써보고, 다음 주에 하나씩 더해가는 게 오래갑니다.
+        </div>
       </div>
     </div>
   </div>
