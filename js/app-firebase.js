@@ -550,7 +550,7 @@ function renderCalendar() {
     const min = Math.round(sec / 60);
     el.className = 'cal-day' + (isDone ? ' done' : isT ? ' today' : inC ? ' challenge' : '');
     el.innerHTML = `<span class="cal-day-num">${d}</span>` +
-      (isDone && min > 0 ? `<span class="cal-day-min">${min}분</span>` : '');
+      (isDone && min > 0 ? `<br><span class="cal-day-min">${min}분</span>` : '');
     if (isDone) {
       el.classList.add('clickable');
       el.title = '클릭하면 그날의 기록을 볼 수 있어요';
