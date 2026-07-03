@@ -540,12 +540,65 @@ function renderCalendar() {
     const isT  = ds === today();
     const isDone = (userData.completedDays || {})[ds];
     el.className = 'cal-day' + (isDone ? ' done' : isT ? ' today' : inC ? ' challenge' : '');
+    if (isDone) {
+      el.classList.add('clickable');
+      el.title = '클릭하면 그날의 기록을 볼 수 있어요';
+      el.onclick = () => showJournalDetail(ds);
+    }
     g.appendChild(el);
   }
   document.getElementById('cal-done-count').textContent = doneCount();
 }
 window.calPrev = function() { if (calM===0){calY--;calM=11;}else calM--; renderCalendar(); };
 window.calNext = function() { if (calM===11){calY++;calM=0;}else calM++; renderCalendar(); };
+
+// ── 지난 기록 다시 보기 (모달) ───────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
+function formatFeedbackHtml(s) {
+  return escHtml(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
+window.showJournalDetail = function(ds) {
+  const j   = (userData.journals || {})[ds] || {};
+  const sec = (userData.practiceSeconds || {})[ds] || 0;
+
+  const dateObj   = new Date(ds);
+  const dateLabel = `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일`;
+
+  const startD = new Date(userData.startDate || ds);
+  const dn = Math.min(Math.max(Math.floor((dateObj - startD) / 864e5) + 1, 1), 84);
+  const { w, d } = wkDay(dn);
+  const mw = WEEKS[w];
+
+  const min = Math.floor(sec / 60), s = sec % 60;
+  const timeLabel = sec > 0 ? `${min}분 ${s}초` : '';
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-date">${dateLabel} · Day ${dn}/84 (${w}주차 ${d}일차)</div>
+    <div class="modal-title">${mw ? '✍️ ' + mw.title : ''}</div>
+    <div class="modal-section">
+      <div class="modal-section-label">⏱ 실제 연습 시간</div>
+      <div class="modal-section-body${timeLabel ? '' : ' empty'}">${timeLabel || '기록된 연습 시간이 없어요'}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">✏️ 발견한 가장 불규칙한 부분</div>
+      <div class="modal-section-body${j.weakness ? '' : ' empty'}">${j.weakness ? escHtml(j.weakness) : '작성된 메모가 없어요'}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-label">🤖 AI 코치 피드백</div>
+      <div class="modal-section-body${j.feedback ? '' : ' empty'}">${j.feedback ? formatFeedbackHtml(j.feedback) : '저장된 피드백이 없어요'}</div>
+    </div>
+  `;
+  document.getElementById('journal-modal').classList.remove('hidden');
+};
+
+window.closeJournalModal = function() {
+  document.getElementById('journal-modal').classList.add('hidden');
+};
 
 // ── 앱 초기화 ─────────────────────────────────────────────
 window.initApp = function() {
