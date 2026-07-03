@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="12주 84일 악필 교정 프로그램 — 매일 10분으로 손글씨를 바꿔보세요">
   <title>12주 악필 교정 챌린저</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2D6A4F">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="악필교정">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -107,6 +114,18 @@
     .compare-col img{width:100%;border-radius:8px;aspect-ratio:210/297;object-fit:cover;display:block}
     .compare-label{font-size:12px;color:#666;margin-top:6px}
     .compare-label strong{color:#2D6A4F}
+    .onboard-box{text-align:center;max-width:400px}
+    .onboard-slide{display:none}
+    .onboard-slide.active{display:block;animation:fadein .3s ease}
+    @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    .onboard-icon{font-size:44px;margin:8px 0 16px}
+    .onboard-slide h3{font-size:18px;font-weight:600;color:#2D6A4F;line-height:1.4;margin:0 0 12px}
+    .onboard-slide p{font-size:13.5px;color:#666;line-height:1.7;margin:0 0 8px}
+    .onboard-dots{display:flex;justify-content:center;gap:7px;margin:20px 0}
+    .onboard-dot{width:8px;height:8px;border-radius:50%;background:#D9D4CB;transition:all .2s}
+    .onboard-dot.active{background:#2D6A4F;width:20px;border-radius:4px}
+    .onboard-btns{display:flex;gap:10px;justify-content:space-between}
+    .onboard-btns .btn{flex:1}
   </style>
 </head>
 <body>
@@ -403,6 +422,39 @@
   </div>
 </div>
 
+<!-- 첫 사용자 안내(온보딩) 모달 -->
+<div id="onboard-modal" class="modal-overlay hidden">
+  <div class="modal-box onboard-box">
+    <div class="onboard-slides" id="onboard-slides">
+      <div class="onboard-slide active">
+        <div class="onboard-icon">✍️</div>
+        <h3>12주 악필 교정 챌린저에<br>오신 걸 환영합니다!</h3>
+        <p>매일 딱 10분, 84일 동안 손글씨를 바꿔보는 프로그램이에요. 부담 없이 하루씩 채워가면 됩니다.</p>
+      </div>
+      <div class="onboard-slide">
+        <div class="onboard-icon">📋</div>
+        <h3>1. 오늘의 미션 확인</h3>
+        <p>미션 탭에서 준비 루틴(손 풀기·호흡)을 한 뒤, 오늘의 연습 미션을 확인하고 10분 타이머를 켜고 연습하세요.</p>
+      </div>
+      <div class="onboard-slide">
+        <div class="onboard-icon">📓</div>
+        <h3>2. 사진 찍고 AI 피드백</h3>
+        <p>연습한 종이를 사진으로 올리면 AI 코치가 잘한 점과 개선점을 알려줘요. "저장 & 스탬프 찍기"로 오늘을 완료합니다.</p>
+      </div>
+      <div class="onboard-slide">
+        <div class="onboard-icon">📊</div>
+        <h3>3. 기록과 성장 확인</h3>
+        <p>스탬프·통계·사진 모아보기에서 나의 연속 기록과 배지, 그리고 첫날과 지금의 변화(Before/After)를 볼 수 있어요.</p>
+      </div>
+    </div>
+    <div class="onboard-dots" id="onboard-dots"></div>
+    <div class="onboard-btns">
+      <button class="btn btn-default" id="onboard-skip" onclick="closeOnboard()">건너뛰기</button>
+      <button class="btn btn-primary" id="onboard-next" onclick="onboardNext()">다음</button>
+    </div>
+  </div>
+</div>
+
 <!-- Firebase SDK (모듈 방식) -->
 <script type="module">
 import { initializeApp }
@@ -476,6 +528,14 @@ document.getElementById('warmup-steps').innerHTML = WARMUP_STEPS.map((s,i) => `
       <span class="step-time">⏱ ${s.time}</span>
     </div>
   </div>`).join('');
+</script>
+<script>
+// PWA 서비스 워커 등록 (홈 화면 추가 + 오프라인 지원)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW 등록 실패:', err));
+  });
+}
 </script>
 </body>
 </html>
