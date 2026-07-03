@@ -542,11 +542,15 @@ function renderCalendar() {
   }
   for (let d = 1; d <= last.getDate(); d++) {
     const dt = new Date(calY, calM, d), ds = ymd(dt);
-    const el = document.createElement('div'); el.textContent = d;
+    const el = document.createElement('div');
     const inC  = dt >= start && dt <= end;
     const isT  = ds === today();
     const isDone = (userData.completedDays || {})[ds];
+    const sec = (userData.practiceSeconds || {})[ds] || 0;
+    const min = Math.round(sec / 60);
     el.className = 'cal-day' + (isDone ? ' done' : isT ? ' today' : inC ? ' challenge' : '');
+    el.innerHTML = `<span class="cal-day-num">${d}</span>` +
+      (isDone && min > 0 ? `<span class="cal-day-min">${min}분</span>` : '');
     if (isDone) {
       el.classList.add('clickable');
       el.title = '클릭하면 그날의 기록을 볼 수 있어요';
