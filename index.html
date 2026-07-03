@@ -214,7 +214,7 @@
         </div>
         <div class="save-row">
           <span class="save-ok" id="save-ok">✅ 저장 완료! (클라우드 동기화됨)</span>
-          <button class="btn btn-primary" onclick="saveJournal()">💾 저장 & 스탬프 찍기</button>
+          <button class="btn btn-primary" id="btn-save" onclick="saveJournal()">💾 저장 & 스탬프 찍기</button>
         </div>
       </div>
     </div>
@@ -258,6 +258,8 @@ import { getAuth, GoogleAuthProvider, signInWithPopup,
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getStorage, ref as storageRef, uploadString, getDownloadURL }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey:            "AIzaSyCWe75Zimv-JdRwjF68EJaKyak6ocVZRvk",
@@ -271,10 +273,12 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+const storage = getStorage(app);
 
 // 전역 노출
 window._auth = auth;
 window._db   = db;
+window._storage = storage;
 window._GoogleAuthProvider  = GoogleAuthProvider;
 window._signInWithPopup     = signInWithPopup;
 window._signInWithRedirect  = signInWithRedirect;
@@ -285,6 +289,9 @@ window._getDoc    = getDoc;
 window._setDoc    = setDoc;
 window._updateDoc = updateDoc;
 window._onSnapshot = onSnapshot;
+window._storageRef     = storageRef;
+window._uploadString   = uploadString;
+window._getDownloadURL = getDownloadURL;
 
 // 인증 상태 감지
 onAuthStateChanged(auth, async (user) => {
