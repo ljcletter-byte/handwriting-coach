@@ -180,6 +180,11 @@ function renderMission() {
   document.getElementById('mission-title').textContent = selW + '주차: ' + mw.title;
   document.getElementById('mission-badge').textContent = 'Day ' + ((selW-1)*7 + selD);
   document.getElementById('mission-body').innerHTML = `
+    <div class="week-focus">
+      <div class="week-focus-head">🔍 이번 주 관찰 포인트</div>
+      <div class="week-focus-main">${mw.focus}</div>
+      <div class="week-focus-q">"${mw.question}"</div>
+    </div>
     <div class="mission-part">
       <div class="part-badge part-1">Part 1 · 선긋기</div>
       <h3>${md.p1}</h3><p>${md.p1d}</p>
