@@ -126,6 +126,11 @@
     .onboard-dot.active{background:#2D6A4F;width:20px;border-radius:4px}
     .onboard-btns{display:flex;gap:10px;justify-content:space-between}
     .onboard-btns .btn{flex:1}
+    .data-desc{font-size:12.5px;color:#777;line-height:1.6;margin:0 0 14px}
+    .data-btns{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+    .data-btns .btn{width:100%}
+    .data-restore{border-top:1px solid #eee;padding-top:14px}
+    .data-restore-hint{display:block;font-size:11px;color:#999;margin-top:8px;line-height:1.5}
   </style>
 </head>
 <body>
@@ -409,6 +414,20 @@
       <div class="card fadein">
         <div class="sec-label" style="margin-top:0">주차 완주 배지</div>
         <div class="week-badge-row" id="week-badge-row"></div>
+      </div>
+
+      <div class="card fadein">
+        <div class="sec-label" style="margin-top:0">💾 내 기록 백업 & 내보내기</div>
+        <p class="data-desc">클라우드에 저장된 기록을 내 기기로 내려받아 보관할 수 있어요. "처음부터 다시"로 기록이 지워져도 백업 파일(JSON)로 되돌릴 수 있습니다.</p>
+        <div class="data-btns">
+          <button class="btn btn-default" onclick="exportJSON()">📦 백업 파일 저장 (복원용)</button>
+          <button class="btn btn-default" onclick="exportText()">📄 읽기용 기록 저장 (텍스트)</button>
+        </div>
+        <div class="data-restore">
+          <label class="btn btn-default" for="restore-input" style="cursor:pointer;display:inline-block">↩️ 백업 파일로 복원하기</label>
+          <input type="file" id="restore-input" accept="application/json,.json" style="display:none">
+          <span class="data-restore-hint">이전에 저장한 백업 파일(.json)을 선택하면 기록을 되살립니다.</span>
+        </div>
       </div>
     </div>
   </div>
