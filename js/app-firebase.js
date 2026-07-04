@@ -646,7 +646,29 @@ window.saveJournal = async function() {
   const ok = document.getElementById('save-ok');
   ok.classList.add('show');
   setTimeout(() => ok.classList.remove('show'), 3000);
+  celebrateStamp();
 };
+
+// 저장 완료 축하 도장 연출 (쾅! 찍히고 잠시 후 사라짐)
+function celebrateStamp() {
+  const el = document.getElementById('stamp-celebrate');
+  if (!el) return;
+  const flower = document.getElementById('stamp-flower');
+  // 연속 진행률(스트릭)에 따라 응원 문구 변경
+  const streak = (typeof computeStreak === 'function') ? computeStreak() : 0;
+  const cap = document.getElementById('stamp-caption');
+  if (cap) {
+    cap.textContent = streak >= 2
+      ? `${streak}일 연속 달성! 대단해요 🔥`
+      : '오늘도 완료! 수고했어요 🎉';
+  }
+  // 애니메이션 재시작을 위해 클래스 리셋
+  el.classList.remove('hidden');
+  if (flower) { flower.style.animation = 'none'; void flower.offsetWidth; flower.style.animation = ''; }
+  if (typeof beep === 'function') beep();
+  clearTimeout(window._stampTimer);
+  window._stampTimer = setTimeout(() => el.classList.add('hidden'), 2200);
+}
 
 function loadJournal() {
   const t = today(), j = (userData.journals || {})[t] || {};
@@ -774,7 +796,8 @@ function renderCalendar() {
     const min = Math.round(sec / 60);
     el.className = 'cal-day' + (isDone ? ' done' : isT ? ' today' : inC ? ' challenge' : '');
     el.innerHTML = `<div class="cal-day-content"><span class="cal-day-num">${d}</span>` +
-      (isDone && min > 0 ? `<span class="cal-day-min">${min}분</span>` : '') + `</div>`;
+      (isDone && min > 0 ? `<span class="cal-day-min">${min}분</span>` : '') + `</div>` +
+      (isDone ? calFlowerSVG() : '');
     if (isDone) {
       el.classList.add('clickable');
       el.title = '클릭하면 그날의 기록을 볼 수 있어요';
@@ -783,6 +806,20 @@ function renderCalendar() {
     g.appendChild(el);
   }
   document.getElementById('cal-done-count').textContent = doneCount();
+}
+
+// 캘린더 완료 칸에 얹는 작은 보라 꽃도장
+function calFlowerSVG() {
+  return `<svg class="cal-flower" width="30" height="30" viewBox="0 0 100 100" aria-hidden="true">
+    <g transform="translate(50,50)">
+      <g fill="#7E5BC2" opacity="0.9">
+        ${[0,45,90,135,180,225,270,315].map(a =>
+          `<ellipse cx="0" cy="-30" rx="11" ry="18" transform="rotate(${a})"/>`).join('')}
+      </g>
+      <circle cx="0" cy="0" r="16" fill="#5E3FA0"/>
+      <path d="M-7,0 L-2,6 L8,-6" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </svg>`;
 }
 window.calPrev = function() { if (calM===0){calY--;calM=11;}else calM--; renderCalendar(); };
 window.calNext = function() { if (calM===11){calY++;calM=0;}else calM++; renderCalendar(); };
