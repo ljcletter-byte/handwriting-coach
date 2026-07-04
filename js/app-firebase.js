@@ -581,44 +581,74 @@ window.selectSelfCheck = function(v) {
 // Cloudflare Worker(중계 서버)를 통해 호출합니다.
 const AI_WORKER_URL = 'https://handwriting-ai-coach.ljcletter.workers.dev';
 
+// 실제 API 호출 (한 번의 시도) — 성공 시 텍스트 반환, 실패 시 예외
+async function requestAIFeedback(uc) {
+  const res = await fetch(AI_WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: uc }] })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  if (!data.content) throw new Error('응답이 비어 있습니다');
+  return data.content.map(i => i.text || '').join('');
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 window.getAIFeedback = async function() {
   const weak = document.getElementById('weakness-input').value.trim();
   const mw = WEEKS[selW], md = mw.days[selD - 1], dn = (selW-1)*7 + selD;
-  document.getElementById('ai-loading').classList.add('show');
-  document.getElementById('ai-result').classList.remove('show');
+  const loadingEl = document.getElementById('ai-loading');
+  const resultEl  = document.getElementById('ai-result');
+  loadingEl.classList.add('show');
+  loadingEl.textContent = '⏳ AI 코치가 글씨를 분석 중입니다...';
+  resultEl.classList.remove('show');
   document.getElementById('btn-ai').disabled = true;
-  try {
-    const uc = [];
-    if (uploadedImg) {
-      const b = uploadedImg.split(',')[1];
-      const mt = uploadedImg.split(';')[0].split(':')[1] || 'image/jpeg';
-      uc.push({ type: 'image', source: { type: 'base64', media_type: mt, data: b } });
-    }
-    let pr = `당신은 한국어 손글씨 교정 전문 AI 코치입니다.\n현재 Day ${dn}/84 (${selW}주차 ${selD}일차), 주제: ${mw.title}\nPart 1: ${md.p1}\nPart 2: ${md.p2}\nPart 3: ${md.p3}`;
-    if (weak) pr += `\n학습자가 발견한 불규칙 부분: ${weak}`;
-    pr += uploadedImg
-      ? '\n\n업로드된 글씨 사진을 분석해 피드백을 제공해주세요.'
-      : '\n\n(사진 없음 — 오늘 미션 기반 일반 연습 포인트와 격려 메시지를 제공해주세요.)';
-    pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **내일의 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
-    uc.push({ type: 'text', text: pr });
-    const res = await fetch(AI_WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: uc }] })
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-    const txt = data.content.map(i => i.text || '').join('');
-    document.getElementById('ai-result').innerHTML =
-      txt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    document.getElementById('ai-result').classList.add('show');
-    document.getElementById('feedback-input').value = txt;
-  } catch(err) {
-    console.error('AI 피드백 오류:', err);
-    document.getElementById('ai-result').innerHTML = '피드백 요청 중 오류가 발생했습니다. (' + err.message + ')';
-    document.getElementById('ai-result').classList.add('show');
+
+  // 프롬프트 구성
+  const uc = [];
+  if (uploadedImg) {
+    const b = uploadedImg.split(',')[1];
+    const mt = uploadedImg.split(';')[0].split(':')[1] || 'image/jpeg';
+    uc.push({ type: 'image', source: { type: 'base64', media_type: mt, data: b } });
   }
-  document.getElementById('ai-loading').classList.remove('show');
+  let pr = `당신은 한국어 손글씨 교정 전문 AI 코치입니다.\n현재 Day ${dn}/84 (${selW}주차 ${selD}일차), 주제: ${mw.title}\nPart 1: ${md.p1}\nPart 2: ${md.p2}\nPart 3: ${md.p3}`;
+  if (weak) pr += `\n학습자가 발견한 불규칙 부분: ${weak}`;
+  pr += uploadedImg
+    ? '\n\n업로드된 글씨 사진을 분석해 피드백을 제공해주세요.'
+    : '\n\n(사진 없음 — 오늘 미션 기반 일반 연습 포인트와 격려 메시지를 제공해주세요.)';
+  pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **내일의 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
+  uc.push({ type: 'text', text: pr });
+
+  // 자동 재시도: 최대 3회, 실패할 때마다 조금 더 기다렸다가 다시 시도
+  const MAX_TRIES = 3;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    try {
+      if (attempt > 1) {
+        loadingEl.textContent = `⏳ 연결이 잠시 불안정해요. 다시 시도 중... (${attempt}/${MAX_TRIES})`;
+      }
+      const txt = await requestAIFeedback(uc);
+      resultEl.innerHTML = txt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      resultEl.classList.add('show');
+      document.getElementById('feedback-input').value = txt;
+      loadingEl.classList.remove('show');
+      document.getElementById('btn-ai').disabled = false;
+      return; // 성공 → 종료
+    } catch (err) {
+      lastErr = err;
+      console.error(`AI 피드백 오류 (시도 ${attempt}/${MAX_TRIES}):`, err);
+      if (attempt < MAX_TRIES) {
+        await sleep(attempt * 1500); // 1.5초 → 3초 점점 길게 대기 후 재시도
+      }
+    }
+  }
+
+  // 3번 모두 실패
+  resultEl.innerHTML = '😥 AI 코치 연결에 몇 번 실패했어요.<br>잠시 후 <strong>"✨ 피드백 받기"</strong>를 다시 눌러주세요.<br><span style="font-size:11px;color:#999">(오류: ' + (lastErr ? lastErr.message : '알 수 없음') + ')</span>';
+  resultEl.classList.add('show');
+  loadingEl.classList.remove('show');
   document.getElementById('btn-ai').disabled = false;
 };
 
