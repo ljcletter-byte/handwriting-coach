@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;500;600&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <style>
     .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
@@ -186,6 +186,17 @@
     .accordion.open .accordion-body{display:block;animation:accFade .25s ease}
     @keyframes accFade{from{opacity:0}to{opacity:1}}
     .accordion-body .card{margin:0;box-shadow:none;border:none;padding:8px 4px}
+    .font-switch{display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+    .font-switch-label{font-size:12px;color:#888;margin-right:2px}
+    .font-btn{background:#fff;border:1.5px solid #E5E1D8;color:#666;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
+    .font-btn:hover{border-color:#74C69D}
+    .font-btn.active{background:#2D6A4F;border-color:#2D6A4F;color:#fff;font-weight:600}
+    .example-label{font-size:11px;color:#40916C;font-weight:600;margin:10px 0 6px}
+    .grid-example{display:flex;gap:5px;flex-wrap:wrap}
+    .grid-cell{display:flex;align-items:center;justify-content:center;position:relative;border:1px solid #cfd8d2;border-radius:6px;background:#fbfcfb;color:#222;flex-shrink:0}
+    .grid-cell.space{border-style:dashed;background:transparent}
+    .grid-cell span{position:relative;z-index:1;line-height:1}
+    .grid-guide{position:absolute;inset:0;background-image:linear-gradient(#e3ebe6 1px,transparent 1px),linear-gradient(90deg,#e3ebe6 1px,transparent 1px);background-position:center;background-size:100% 50%,50% 100%;border-radius:6px}
   </style>
 </head>
 <body>
