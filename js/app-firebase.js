@@ -174,6 +174,11 @@ window.closeMoreSheet = function() {
   document.getElementById('more-sheet').classList.add('hidden');
 };
 
+window.toggleAccordion = function(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+};
+
 // ── 대시보드 ──────────────────────────────────────────────
 function updateDash() {
   const n = dayFromStart(), {w} = wkDay(n), done = doneCount();
@@ -195,7 +200,13 @@ function initWeekTabs() {
     const b = document.createElement('button');
     b.className = 'week-tab' + (w === selW ? ' active' : '');
     b.textContent = w + '주차';
-    b.onclick = () => { selW = w; selD = 1; initWeekTabs(); renderMission(); renderWorksheet(); };
+    b.onclick = () => {
+      selW = w; selD = 1; initWeekTabs(); renderMission(); renderWorksheet();
+      // 주차를 고르면 미리보기 아코디언을 닫고 맨 위 미션으로 스크롤
+      const acc = document.getElementById('acc-weeks');
+      if (acc) acc.classList.remove('open');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
     c.appendChild(b);
   }
 }
