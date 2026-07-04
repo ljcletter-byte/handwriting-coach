@@ -927,3 +927,103 @@ window.closeOnboard = function() {
   userData.onboarded = true;
   saveUserData();
 };
+
+// ── 데이터 백업 / 내보내기 / 복원 ─────────────────────────
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// 복원용 JSON (사진은 별도 저장이라 제외 — 텍스트 기록/시간/진도만 백업)
+window.exportJSON = function() {
+  const backup = {
+    _type: 'handwriting-coach-backup',
+    _version: 1,
+    _exportedAt: new Date().toISOString(),
+    startDate: userData.startDate,
+    completedDays: userData.completedDays || {},
+    journals: userData.journals || {},
+    practiceSeconds: userData.practiceSeconds || {},
+    onboarded: userData.onboarded || false
+  };
+  const stamp = today().replace(/-/g, '');
+  downloadFile(`악필교정_백업_${stamp}.json`, JSON.stringify(backup, null, 2), 'application/json');
+};
+
+// 읽기용 텍스트 (사람이 읽기 좋은 일기장 형태)
+window.exportText = function() {
+  const cd = userData.completedDays  || {};
+  const jn = userData.journals       || {};
+  const ps = userData.practiceSeconds || {};
+  const dates = Array.from(new Set([...Object.keys(cd), ...Object.keys(jn), ...Object.keys(ps)])).sort();
+
+  let out = '12주 악필 교정 챌린저 — 나의 연습 기록\n';
+  out += `내보낸 날짜: ${today()}\n`;
+  out += `총 완료: ${doneCount()}일 / 84일\n`;
+  out += '='.repeat(40) + '\n\n';
+
+  if (dates.length === 0) {
+    out += '아직 저장된 기록이 없습니다.\n';
+  }
+
+  const start = new Date(userData.startDate || today());
+  dates.forEach(ds => {
+    const dt = new Date(ds);
+    const dn = Math.min(Math.max(Math.floor((dt - start) / 864e5) + 1, 1), 84);
+    const { w, d } = wkDay(dn);
+    const sec = ps[ds] || 0;
+    const min = Math.floor(sec / 60), s = sec % 60;
+    const j = jn[ds] || {};
+
+    out += `[${ds}] Day ${dn}/84 · ${w}주차 ${d}일차\n`;
+    if (sec > 0) out += `  ⏱ 연습 시간: ${min}분 ${s}초\n`;
+    if (j.weakness) out += `  ✏️ 불규칙한 부분: ${j.weakness}\n`;
+    if (j.feedback) {
+      // 마크다운 강조 기호 제거해서 깔끔하게
+      const fb = j.feedback.replace(/\*\*/g, '').replace(/^#+\s*/gm, '');
+      out += `  🤖 AI 피드백:\n`;
+      fb.split('\n').forEach(line => { if (line.trim()) out += `     ${line.trim()}\n`; });
+    }
+    out += '\n';
+  });
+
+  const stamp = today().replace(/-/g, '');
+  downloadFile(`악필교정_기록_${stamp}.txt`, out, 'text/plain;charset=utf-8');
+};
+
+// 백업 파일(JSON)로 복원
+document.getElementById('restore-input').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  e.target.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
+  if (!f) return;
+  try {
+    const text = await f.text();
+    const data = JSON.parse(text);
+    if (data._type !== 'handwriting-coach-backup') {
+      alert('올바른 백업 파일이 아니에요. 이 앱에서 내보낸 .json 파일을 선택해주세요.');
+      return;
+    }
+    const cnt = Object.keys(data.completedDays || {}).length;
+    if (!confirm(`백업 파일에서 ${cnt}일치 기록을 발견했어요.\n\n지금 기록을 이 백업 내용으로 덮어쓸까요?\n(현재 클라우드 기록은 백업 내용으로 대체됩니다)`)) return;
+
+    userData.startDate       = data.startDate || userData.startDate;
+    userData.completedDays   = data.completedDays   || {};
+    userData.journals        = data.journals        || {};
+    userData.practiceSeconds = data.practiceSeconds || {};
+    userData.onboarded       = data.onboarded !== undefined ? data.onboarded : true;
+
+    await saveUserData();
+    updateDash(); renderCalendar(); loadJournal();
+    if (typeof renderStats === 'function') renderStats();
+    galleryCache = null;
+    alert('복원이 완료됐어요! 스탬프와 통계에서 기록을 확인해보세요.\n(사진은 백업에 포함되지 않아 별도로 남아있는 것만 표시됩니다)');
+  } catch (err) {
+    console.error('복원 오류:', err);
+    alert('파일을 읽는 중 오류가 발생했어요. 올바른 백업 파일인지 확인해주세요.');
+  }
+});
