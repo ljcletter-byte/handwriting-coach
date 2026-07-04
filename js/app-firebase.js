@@ -111,6 +111,8 @@ window.resetProgress = async function() {
   // 화면 초기화
   document.getElementById('weakness-input').value = '';
   document.getElementById('feedback-input').value = '';
+  selfCheckValue = null;
+  if (typeof renderSelfCheck === 'function') renderSelfCheck();
   const preview = document.getElementById('upload-preview');
   if (preview) { preview.src = ''; preview.style.display = 'none'; preview.classList.add('collapsed'); }
   uploadedImg = null;
@@ -229,6 +231,7 @@ function renderMission() {
       ).join('')}
     </div>`;
   renderWorksheet();
+  if (typeof renderSelfCheck === 'function') renderSelfCheck();
 }
 window.selDay = function(d) { selD = d; renderMission(); };
 
@@ -530,6 +533,7 @@ window.saveJournal = async function() {
   userData.journals[t] = {
     weakness: document.getElementById('weakness-input').value,
     feedback: document.getElementById('feedback-input').value,
+    selfCheck: selfCheckValue,
     hasPhoto: hasPhoto,
     savedAt:  new Date().toISOString()
   };
@@ -545,9 +549,32 @@ window.saveJournal = async function() {
 
 function loadJournal() {
   const t = today(), j = (userData.journals || {})[t] || {};
-  if (j.weakness) document.getElementById('weakness-input').value = j.weakness;
-  if (j.feedback) document.getElementById('feedback-input').value = j.feedback;
+  document.getElementById('weakness-input').value = j.weakness || '';
+  document.getElementById('feedback-input').value = j.feedback || '';
+  // 자가 진단 복원
+  selfCheckValue = j.selfCheck || null;
+  renderSelfCheck();
 }
+
+// ── 자가 진단 ─────────────────────────────────────────────
+let selfCheckValue = null;
+function selfCheckLabel(v) {
+  return { good: '😊 잘됨', soso: '😐 보통', hard: '😥 아쉬움' }[v] || '-';
+}
+function renderSelfCheck() {
+  // 이번 주 관찰 포인트를 질문에 반영
+  const mw = WEEKS[selW];
+  const q = document.getElementById('selfcheck-q');
+  if (q && mw) q.innerHTML = `이번 주 관찰 포인트 <strong>「${mw.focus}」</strong>를 얼마나 지켰나요?`;
+  // 선택 상태 표시
+  document.querySelectorAll('.selfcheck-opt').forEach(b => {
+    b.classList.toggle('selected', b.dataset.v === selfCheckValue);
+  });
+}
+window.selectSelfCheck = function(v) {
+  selfCheckValue = (selfCheckValue === v) ? null : v; // 다시 누르면 해제
+  renderSelfCheck();
+};
 
 // ── AI 피드백 ─────────────────────────────────────────────
 // Anthropic API를 브라우저에서 직접 호출할 수 없으므로
@@ -666,6 +693,11 @@ window.showJournalDetail = async function(ds) {
       <div class="modal-section-label">⏱ 실제 연습 시간</div>
       <div class="modal-section-body${timeLabel ? '' : ' empty'}">${timeLabel || '기록된 연습 시간이 없어요'}</div>
     </div>
+    ${j.selfCheck ? `
+    <div class="modal-section">
+      <div class="modal-section-label">🔍 자가 진단 (관찰 포인트)</div>
+      <div class="modal-section-body">${selfCheckLabel(j.selfCheck)}</div>
+    </div>` : ''}
     <div class="modal-section">
       <div class="modal-section-label">✏️ 발견한 가장 불규칙한 부분</div>
       <div class="modal-section-body${j.weakness ? '' : ' empty'}">${j.weakness ? escHtml(j.weakness) : '작성된 메모가 없어요'}</div>
@@ -1011,6 +1043,7 @@ window.exportText = function() {
 
     out += `[${ds}] Day ${dn}/84 · ${w}주차 ${d}일차\n`;
     if (sec > 0) out += `  ⏱ 연습 시간: ${min}분 ${s}초\n`;
+    if (j.selfCheck) out += `  🔍 자가 진단: ${selfCheckLabel(j.selfCheck)}\n`;
     if (j.weakness) out += `  ✏️ 불규칙한 부분: ${j.weakness}\n`;
     if (j.feedback) {
       // 마크다운 강조 기호 제거해서 깔끔하게
