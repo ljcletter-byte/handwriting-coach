@@ -138,14 +138,38 @@ const wkDay    = n => ({ w: Math.min(Math.ceil(n/7), 12), d: Math.min(((n-1)%7)+
 const doneCount = () => Object.keys(userData.completedDays || {}).length;
 
 // ── 탭 전환 ───────────────────────────────────────────────
+// 하단 탭바에 직접 있는 탭들 (나머지는 '더보기' 안에 있음)
+const BOTTOM_TABS = ['mission', 'journal', 'calendar', 'stats'];
+
 window.switchTab = function(name) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+
+  // 하단 탭바 활성화 표시
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  const bnItem = document.querySelector(`.bn-item[data-tab="${name}"]`);
+  if (bnItem) {
+    bnItem.classList.add('active');
+  } else {
+    // 더보기 안에 있는 탭이면 '더보기' 버튼을 활성 표시
+    const more = document.getElementById('bn-more');
+    if (more) more.classList.add('active');
+  }
+
+  // 맨 위로 스크롤 (탭 바꿀 때마다 상단부터 보이도록)
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
   if (name === 'calendar') renderCalendar();
   if (name === 'gallery') renderGallery();
   if (name === 'stats') renderStats();
+};
+
+window.openMoreSheet = function() {
+  document.getElementById('more-sheet').classList.remove('hidden');
+};
+window.closeMoreSheet = function() {
+  document.getElementById('more-sheet').classList.add('hidden');
 };
 
 // ── 대시보드 ──────────────────────────────────────────────
