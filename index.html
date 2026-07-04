@@ -178,6 +178,14 @@
     .wrist-break-icon{font-size:30px;margin-bottom:6px}
     .wrist-break-title{font-size:15px;font-weight:700;color:#8A6D00;margin-bottom:6px}
     .wrist-break-desc{font-size:12.5px;color:#7A6320;line-height:1.6}
+    .accordion{margin-top:14px;background:#fff;border:1px solid var(--border,#E5E1D8);border-radius:12px;overflow:hidden}
+    .accordion-head{width:100%;background:none;border:none;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:#444}
+    .accordion-arrow{font-size:12px;color:#999;transition:transform .2s}
+    .accordion.open .accordion-arrow{transform:rotate(180deg)}
+    .accordion-body{display:none;padding:0 12px 12px}
+    .accordion.open .accordion-body{display:block;animation:accFade .25s ease}
+    @keyframes accFade{from{opacity:0}to{opacity:1}}
+    .accordion-body .card{margin:0;box-shadow:none;border:none;padding:8px 4px}
   </style>
 </head>
 <body>
@@ -246,28 +254,14 @@
 
     <!-- 미션 탭 -->
     <div class="tab-content active" id="tab-mission">
-      <div class="sec-label">준비 루틴 — 시작 전 2분</div>
-      <div class="card warmup-card fadein">
-        <div class="warmup-header">
-          <div class="warmup-header-icon">🤲</div>
-          <div><h3>손 풀기 & 마인드 컨트롤</h3><p>글씨 쓰기 전 준비 루틴 — 천천히 따라하세요</p></div>
-        </div>
-        <div class="warmup-steps" id="warmup-steps"></div>
-        <div class="breath-area">
-          <div class="breath-label">마음 정리 — 복식 호흡</div>
-          <div class="breath-circle pulse" id="breath-circle" onclick="startBreath()">시작</div>
-          <div class="breath-phase" id="breath-phase">원을 클릭해 호흡을 시작하세요</div>
-          <div class="breath-sub" id="breath-sub">4초 들숨 → 4초 날숨 × 3회</div>
-        </div>
-        <div class="quote-area" id="quote-text"></div>
-      </div>
-      <div class="sec-label">주차 선택</div>
-      <div class="week-tabs" id="week-tabs"></div>
+      <!-- 오늘의 미션 (최상단) -->
       <div class="sec-label">오늘의 미션</div>
       <div class="card fadein">
         <div class="mission-header"><h2 id="mission-title">1주차: 선긋기 & 기초 획</h2><span class="mission-badge" id="mission-badge">Day 1</span></div>
         <div id="mission-body"></div>
       </div>
+
+      <!-- 10분 타이머 -->
       <div class="sec-label">10분 타이머</div>
       <div class="card timer-card fadein">
         <div class="timer-display" id="timer-display">10:00</div>
@@ -287,6 +281,41 @@
           <div class="wrist-break-icon">🤲</div>
           <div class="wrist-break-title">잠깐! 손목 풀기 타임</div>
           <div class="wrist-break-desc">벌써 5분이 지났어요. 손목을 시계·반시계 방향으로 5번씩 돌리고, 손가락을 쫙 폈다 접어보세요. 힘을 뺀 뒤 다시 시작하면 훨씬 편해요.</div>
+        </div>
+      </div>
+
+      <!-- 준비 루틴 (접이식) -->
+      <div class="accordion" id="acc-warmup">
+        <button class="accordion-head" onclick="toggleAccordion('acc-warmup')">
+          <span>🤲 준비 루틴 — 시작 전 2분</span>
+          <span class="accordion-arrow">▾</span>
+        </button>
+        <div class="accordion-body">
+          <div class="card warmup-card">
+            <div class="warmup-header">
+              <div class="warmup-header-icon">🤲</div>
+              <div><h3>손 풀기 & 마인드 컨트롤</h3><p>글씨 쓰기 전 준비 루틴 — 천천히 따라하세요</p></div>
+            </div>
+            <div class="warmup-steps" id="warmup-steps"></div>
+            <div class="breath-area">
+              <div class="breath-label">마음 정리 — 복식 호흡</div>
+              <div class="breath-circle pulse" id="breath-circle" onclick="startBreath()">시작</div>
+              <div class="breath-phase" id="breath-phase">원을 클릭해 호흡을 시작하세요</div>
+              <div class="breath-sub" id="breath-sub">4초 들숨 → 4초 날숨 × 3회</div>
+            </div>
+            <div class="quote-area" id="quote-text"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 주차 선택 (접이식) -->
+      <div class="accordion" id="acc-weeks">
+        <button class="accordion-head" onclick="toggleAccordion('acc-weeks')">
+          <span>📅 다른 주차 미리보기</span>
+          <span class="accordion-arrow">▾</span>
+        </button>
+        <div class="accordion-body">
+          <div class="week-tabs" id="week-tabs"></div>
         </div>
       </div>
     </div>
