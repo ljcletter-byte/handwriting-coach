@@ -171,6 +171,13 @@
     .selfcheck-opt:hover{border-color:#74C69D}
     .selfcheck-opt.selected{border-color:#2D6A4F;background:#f5f9f6}
     .selfcheck-opt.selected span{color:#2D6A4F;font-weight:700}
+    .wrist-break{display:none;position:relative;margin-top:14px;background:linear-gradient(135deg,#FFF8E1,#FFF3C4);border:1px solid #FFE08A;border-radius:12px;padding:16px 18px;text-align:center;animation:wristPop .4s ease}
+    .wrist-break.show{display:block}
+    @keyframes wristPop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+    .wrist-break-close{position:absolute;top:8px;right:10px;background:none;border:none;font-size:15px;color:#B08900;cursor:pointer;line-height:1}
+    .wrist-break-icon{font-size:30px;margin-bottom:6px}
+    .wrist-break-title{font-size:15px;font-weight:700;color:#8A6D00;margin-bottom:6px}
+    .wrist-break-desc{font-size:12.5px;color:#7A6320;line-height:1.6}
   </style>
 </head>
 <body>
@@ -275,6 +282,12 @@
           <button class="btn btn-default" onclick="timerReset()">↺ 초기화</button>
         </div>
         <div class="timer-done" id="timer-done">🎉 10분 완료! 오늘도 수고했어요</div>
+        <div class="wrist-break" id="wrist-break">
+          <button class="wrist-break-close" onclick="closeWristBreak()">✕</button>
+          <div class="wrist-break-icon">🤲</div>
+          <div class="wrist-break-title">잠깐! 손목 풀기 타임</div>
+          <div class="wrist-break-desc">벌써 5분이 지났어요. 손목을 시계·반시계 방향으로 5번씩 돌리고, 손가락을 쫙 폈다 접어보세요. 힘을 뺀 뒤 다시 시작하면 훨씬 편해요.</div>
+        </div>
       </div>
     </div>
 
