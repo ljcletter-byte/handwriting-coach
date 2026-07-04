@@ -197,6 +197,25 @@
     .grid-cell.space{border-style:dashed;background:transparent}
     .grid-cell span{position:relative;z-index:1;line-height:1}
     .grid-guide{position:absolute;inset:0;background-image:linear-gradient(#e3ebe6 1px,transparent 1px),linear-gradient(90deg,#e3ebe6 1px,transparent 1px);background-position:center;background-size:100% 50%,50% 100%;border-radius:6px}
+    /* 저장 완료 축하 도장 */
+    .stamp-celebrate{position:fixed;inset:0;z-index:1100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(30,28,22,.35);pointer-events:none}
+    .stamp-celebrate.hidden{display:none}
+    .stamp-flower{display:flex;flex-direction:column;align-items:center;gap:14px;animation:stampSlam .5s cubic-bezier(.2,1.4,.4,1) both}
+    .stamp-flower svg{filter:drop-shadow(0 4px 10px rgba(126,91,194,.35))}
+    @keyframes stampSlam{
+      0%{transform:scale(2.4) rotate(-18deg);opacity:0}
+      55%{transform:scale(.82) rotate(6deg);opacity:1}
+      72%{transform:scale(1.06) rotate(-2deg)}
+      100%{transform:scale(1) rotate(-8deg);opacity:1}
+    }
+    .stamp-caption{background:#fff;color:#7E5BC2;font-size:15px;font-weight:700;padding:8px 20px;border-radius:24px;box-shadow:0 3px 12px rgba(0,0,0,.12);animation:capFade .4s ease .35s both}
+    @keyframes capFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    /* 캘린더 완료 칸 꽃도장 */
+    .cal-flower{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.28;pointer-events:none;z-index:0}
+    .cal-day.done{position:relative;background:#EDE7F6!important;border-color:#C9B8E8!important}
+    .cal-day.done .cal-day-content{position:relative;z-index:1}
+    .cal-day.done .cal-day-num{color:#4A2E80!important;font-weight:700}
+    .cal-day.done .cal-day-min{color:#5E3FA0!important}
   </style>
 </head>
 <body>
@@ -534,6 +553,30 @@
   <div class="modal-box">
     <button class="modal-close" onclick="closeJournalModal()">✕</button>
     <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- 저장 완료 축하 도장 연출 -->
+<div id="stamp-celebrate" class="stamp-celebrate hidden">
+  <div class="stamp-flower" id="stamp-flower">
+    <svg viewBox="0 0 200 200" width="200" height="200" aria-hidden="true">
+      <g transform="translate(100,100)">
+        <g stroke="#7E5BC2" stroke-width="5" fill="none">
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(0)"/>
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(45)"/>
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(90)"/>
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(135)"/>
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(180)"/>
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(225)"/>
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(270)"/>
+          <path d="M0,-84 A30,30 0 0,1 0,-24 A30,30 0 0,1 0,-84 Z" transform="rotate(315)"/>
+        </g>
+        <circle cx="0" cy="0" r="42" fill="#7E5BC2"/>
+        <text x="0" y="-6" text-anchor="middle" style="font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;fill:#fff;">참잘</text>
+        <text x="0" y="20" text-anchor="middle" style="font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;fill:#fff;">했어요</text>
+      </g>
+    </svg>
+    <div class="stamp-caption" id="stamp-caption">오늘도 완료! 수고했어요 🎉</div>
   </div>
 </div>
 
