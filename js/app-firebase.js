@@ -326,6 +326,7 @@ function setQuote() {
 // 일시정지·초기화 버튼도 두 기능을 함께 제어합니다.
 // 초기화 또는 저장 시, 스톱워치 시간이 오늘의 practiceSeconds에 자동 누적됩니다.
 let tSec = 600, tRun = false, tIv = null;
+let breakShown = false; // 이번 세션에서 5분 휴식 알림을 이미 띄웠는지
 let swSec = 0, swIv = null;
 
 const tFmt = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
@@ -385,6 +386,11 @@ window.timerToggle = function() {
       tRun = true;
       tIv = setInterval(() => {
         tSec--; tUpd();
+        // 5분(300초) 지점 도달 시 손목 휴식 알림 (한 번만)
+        if (tSec === 300 && !breakShown) {
+          breakShown = true;
+          showWristBreak();
+        }
         if (tSec <= 0) {
           clearInterval(tIv); tIv = null; tRun = false;
           document.getElementById('timer-done').classList.add('show');
@@ -416,6 +422,8 @@ window.timerReset = function() {
   commitPracticeTime();
   saveUserData();
   tSec = 600;
+  breakShown = false;
+  window.closeWristBreak && window.closeWristBreak();
   document.getElementById('btn-timer').textContent = '▶ 시작';
   document.getElementById('timer-done').classList.remove('show');
   tUpd();
@@ -434,6 +442,37 @@ function beep() {
     });
   } catch(e) {}
 }
+
+// 휴식 알림용 부드러운 2음 차임 (완료음 beep보다 낮고 포근한 느낌)
+function softChime() {
+  try {
+    const a = new (window.AudioContext || window.webkitAudioContext)();
+    [[587.33, 0], [440, .3]].forEach(([freq, t]) => {
+      const o = a.createOscillator(), g = a.createGain();
+      o.connect(g); g.connect(a.destination);
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(.18, a.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(.001, a.currentTime + t + .5);
+      o.start(a.currentTime + t); o.stop(a.currentTime + t + .5);
+    });
+  } catch(e) {}
+}
+
+// 5분 손목 휴식 알림 배너
+function showWristBreak() {
+  softChime();
+  const el = document.getElementById('wrist-break');
+  if (!el) return;
+  el.classList.add('show');
+  // 12초 후 자동으로 사라짐 (사용자가 직접 닫을 수도 있음)
+  clearTimeout(window._wristBreakTimer);
+  window._wristBreakTimer = setTimeout(() => el.classList.remove('show'), 12000);
+}
+window.closeWristBreak = function() {
+  const el = document.getElementById('wrist-break');
+  if (el) el.classList.remove('show');
+  clearTimeout(window._wristBreakTimer);
+};
 
 // ── 저널 ─────────────────────────────────────────────────
 let uploadedImg = null;   // AI 분석용 (1200px, 고화질)
