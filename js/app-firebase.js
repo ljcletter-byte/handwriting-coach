@@ -212,6 +212,49 @@ function initWeekTabs() {
 }
 
 // ── 미션 ─────────────────────────────────────────────────
+// 예시 글씨체: 'serif'(명조·교본용) 또는 'gaegu'(개구쟁이·손글씨)
+let practiceFont = 'serif';
+const FONT_FAMILY = {
+  serif: "'Noto Serif KR', serif",
+  gaegu: "'Gaegu', cursive"
+};
+
+window.setPracticeFont = function(f) {
+  practiceFont = f;
+  document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+  const active = document.querySelector(`.font-btn[onclick*="${f}"]`);
+  if (active) active.classList.add('active');
+  renderGridExamples();
+};
+
+// 네모칸(원고지) 예시 렌더링 — 각 글자를 격자 칸에 넣고 보조선 표시
+function renderGridExamples() {
+  const fam = FONT_FAMILY[practiceFont] || FONT_FAMILY.serif;
+  document.querySelectorAll('.grid-example').forEach(box => {
+    const text = box.dataset.text || '';
+    const size = parseInt(box.dataset.size || '44', 10);
+    box.innerHTML = '';
+    [...text].forEach(ch => {
+      const isSpace = ch === ' ';
+      const cell = document.createElement('div');
+      cell.className = 'grid-cell' + (isSpace ? ' space' : '');
+      cell.style.width = size + 'px';
+      cell.style.height = size + 'px';
+      if (!isSpace) {
+        const guide = document.createElement('div');
+        guide.className = 'grid-guide';
+        cell.appendChild(guide);
+        const g = document.createElement('span');
+        g.textContent = ch;
+        g.style.fontFamily = fam;
+        g.style.fontSize = Math.round(size * 0.72) + 'px';
+        cell.appendChild(g);
+      }
+      box.appendChild(cell);
+    });
+  });
+}
+
 function renderMission() {
   const mw = WEEKS[selW], md = mw.days[selD - 1];
   document.getElementById('mission-title').textContent = selW + '주차: ' + mw.title;
@@ -222,6 +265,11 @@ function renderMission() {
       <div class="week-focus-main">${mw.focus}</div>
       <div class="week-focus-q">"${mw.question}"</div>
     </div>
+    <div class="font-switch">
+      <span class="font-switch-label">✍️ 예시 글씨체</span>
+      <button class="font-btn${practiceFont==='serif'?' active':''}" onclick="setPracticeFont('serif')">명조 (교본)</button>
+      <button class="font-btn${practiceFont==='gaegu'?' active':''}" onclick="setPracticeFont('gaegu')">개구쟁이</button>
+    </div>
     <div class="mission-part">
       <div class="part-badge part-1">Part 1 · 선긋기</div>
       <h3>${md.p1}</h3><p>${md.p1d}</p>
@@ -229,18 +277,21 @@ function renderMission() {
     <div class="mission-part">
       <div class="part-badge part-2">Part 2 · 단어</div>
       <h3>${md.p2}</h3><p>${md.p2d}</p>
-      <div class="example-box">${md.p2}</div>
+      <div class="example-label">✍️ 이렇게 써보세요</div>
+      <div class="grid-example" data-text="${md.p2}" data-size="46"></div>
     </div>
     <div class="mission-part">
       <div class="part-badge part-3">Part 3 · 문장</div>
       <h3>${md.p3}</h3><p>${md.p3d}</p>
-      <div class="example-box">${md.p3}</div>
+      <div class="example-label">✍️ 이렇게 써보세요</div>
+      <div class="grid-example" data-text="${md.p3}" data-size="38"></div>
     </div>
     <div class="day-pills">
       ${[1,2,3,4,5,6,7].map(d =>
         `<button class="day-pill${d===selD?' active':''}" onclick="selDay(${d})">${d}일</button>`
       ).join('')}
     </div>`;
+  renderGridExamples();
   renderWorksheet();
   if (typeof renderSelfCheck === 'function') renderSelfCheck();
 }
