@@ -162,6 +162,15 @@
     .week-focus-head{font-size:11px;font-weight:600;color:#40916C;letter-spacing:.02em;margin-bottom:6px}
     .week-focus-main{font-size:16px;font-weight:700;color:#2D6A4F;margin-bottom:4px}
     .week-focus-q{font-size:13px;color:#666;font-style:italic;line-height:1.5}
+    .selfcheck-box{background:#f7f7f2;border-radius:10px;padding:14px;margin-bottom:16px}
+    .selfcheck-q{font-size:13px;color:#555;margin-bottom:10px;line-height:1.5}
+    .selfcheck-q strong{color:#2D6A4F}
+    .selfcheck-opts{display:flex;gap:8px}
+    .selfcheck-opt{flex:1;background:#fff;border:1.5px solid #E5E1D8;border-radius:10px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-family:inherit;font-size:22px;transition:all .15s}
+    .selfcheck-opt span{font-size:11px;color:#888;font-weight:500}
+    .selfcheck-opt:hover{border-color:#74C69D}
+    .selfcheck-opt.selected{border-color:#2D6A4F;background:#f5f9f6}
+    .selfcheck-opt.selected span{color:#2D6A4F;font-weight:700}
   </style>
 </head>
 <body>
@@ -295,6 +304,15 @@
             <div class="upload-preview-hint" id="upload-preview-hint" onclick="togglePreviewSize()">👆 클릭하면 원본 사진 전체를 볼 수 있어요</div>
           </div>
           <div class="journal-col-text">
+            <div class="field-label">🔍 오늘의 자가 진단</div>
+            <div class="selfcheck-box">
+              <div class="selfcheck-q" id="selfcheck-q">이번 주 관찰 포인트를 얼마나 지켰나요?</div>
+              <div class="selfcheck-opts" id="selfcheck-opts">
+                <button type="button" class="selfcheck-opt" data-v="good"  onclick="selectSelfCheck('good')">😊<span>잘됨</span></button>
+                <button type="button" class="selfcheck-opt" data-v="soso"  onclick="selectSelfCheck('soso')">😐<span>보통</span></button>
+                <button type="button" class="selfcheck-opt" data-v="hard"  onclick="selectSelfCheck('hard')">😥<span>아쉬움</span></button>
+              </div>
+            </div>
             <div class="field-label">✏️ 오늘 발견한 가장 불규칙한 부분</div>
             <textarea id="weakness-input" placeholder="예: 'ㄱ'의 꺾이는 각도가 너무 날카롭고 자음이 모음보다 커서 균형이 무너짐..." rows="3"></textarea>
             <div class="ai-header">
