@@ -1011,6 +1011,55 @@ function computeStreak() {
   return streak;
 }
 
+// 최근 14일 일별 연습시간 꺾은선 그래프 (SVG, 라이브러리 없음)
+function renderDailyLineChart(ps) {
+  const box = document.getElementById('daily-line-chart');
+  if (!box) return;
+  const DAYS = 14;
+  const pts = [];
+  const base = new Date();
+  for (let i = DAYS - 1; i >= 0; i--) {
+    const dt = new Date(base); dt.setDate(dt.getDate() - i);
+    const min = Math.round((ps[ymd(dt)] || 0) / 60);
+    pts.push({ dt, min });
+  }
+  const maxMin = Math.max(...pts.map(p => p.min), 10);
+
+  const W = 320, H = 150, padL = 28, padR = 10, padT = 12, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const x = i => padL + (plotW * i / (DAYS - 1));
+  const y = m => padT + plotH - (plotH * m / maxMin);
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.min).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${x(DAYS-1).toFixed(1)},${(padT+plotH).toFixed(1)} L${x(0).toFixed(1)},${(padT+plotH).toFixed(1)} Z`;
+  const grids = [0, Math.round(maxMin/2), maxMin];
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible">`;
+  grids.forEach(g => {
+    const gy = y(g);
+    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#eee" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="9" fill="#bbb">${g}</text>`;
+  });
+  svg += `<path d="${areaPath}" fill="#D8F3DC" opacity="0.5"/>`;
+  svg += `<path d="${linePath}" fill="none" stroke="#2D6A4F" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  pts.forEach((p, i) => {
+    if (p.min > 0) {
+      svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.min).toFixed(1)}" r="3" fill="#2D6A4F"/>`;
+      svg += `<text x="${x(i).toFixed(1)}" y="${(y(p.min)-7).toFixed(1)}" text-anchor="middle" font-size="9" fill="#2D6A4F" font-weight="600">${p.min}</text>`;
+    }
+  });
+  pts.forEach((p, i) => {
+    if (i % 3 === 0 || i === DAYS - 1) {
+      const label = `${p.dt.getMonth()+1}/${p.dt.getDate()}`;
+      svg += `<text x="${x(i).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#999">${label}</text>`;
+    }
+  });
+  svg += `</svg>`;
+
+  const hasAny = pts.some(p => p.min > 0);
+  box.innerHTML = hasAny ? svg : '<div style="text-align:center;color:#bbb;font-size:12px;padding:24px 0">아직 연습 기록이 없어요.<br>연습하고 저장하면 그래프가 그려져요.</div>';
+}
+
 function renderStats() {
   const cd = userData.completedDays  || {};
   const ps = userData.practiceSeconds || {};
@@ -1035,6 +1084,9 @@ function renderStats() {
     weekSec += ps[ymd(dt)] || 0;
   }
   document.getElementById('stat-week-time').textContent = Math.round(weekSec / 60) + '분';
+
+  // 최근 14일 일별 연습시간 꺾은선 그래프
+  renderDailyLineChart(ps);
 
   // 주차별 연습시간 막대그래프 (1~12주)
   const weekMin = [];
