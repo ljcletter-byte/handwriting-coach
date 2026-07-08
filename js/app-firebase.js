@@ -96,15 +96,43 @@ window.logout = async function() {
 // ── 진행 초기화 ───────────────────────────────────────────
 // 완료 일수, 일지, 시작일을 모두 초기화하여 Day 1부터 다시 시작합니다.
 // 실수 방지를 위해 두 단계 확인을 거칩니다.
-window.resetProgress = async function() {
-  if (!confirm('⚠️ 정말 처음부터 다시 시작하시겠습니까?\n\n지금까지의 완료 일수, 일지, 스탬프가 모두 삭제되고 오늘이 Day 1이 됩니다.\n(이 작업은 되돌릴 수 없습니다)')) return;
-  if (!confirm('한 번 더 확인합니다.\n정말 초기화하시겠습니까?')) return;
-  userData = { startDate: today(), completedDays: {}, journals: {}, practiceSeconds: {} };
+// ── 전체 초기화 (여러 안전장치) ───────────────────────────
+// 1) 통계 탭 깊숙이 위치  2) 백업 권유  3) '초기화' 직접 입력해야 실행
+window.startReset = function() {
+  const cntEl = document.getElementById('reset-count');
+  if (cntEl) cntEl.textContent = `${doneCount()}일치`;
+  const input = document.getElementById('reset-confirm-input');
+  if (input) input.value = '';
+  const btn = document.getElementById('reset-final-btn');
+  if (btn) btn.disabled = true;
+  document.getElementById('reset-modal').classList.remove('hidden');
+};
+window.closeResetModal = function() {
+  document.getElementById('reset-modal').classList.add('hidden');
+};
+window.checkResetInput = function() {
+  const input = document.getElementById('reset-confirm-input');
+  const btn = document.getElementById('reset-final-btn');
+  if (!input || !btn) return;
+  btn.disabled = (input.value.trim() !== '초기화');
+};
+window.confirmReset = async function() {
+  const input = document.getElementById('reset-confirm-input');
+  if (!input || input.value.trim() !== '초기화') return;
+  closeResetModal();
+  await doReset();
+  alert('✅ 초기화 완료! 오늘부터 Day 1입니다.');
+};
+
+// 실제 초기화 실행 (내부용)
+async function doReset() {
+  userData = { startDate: today(), completedDays: {}, journals: {}, practiceSeconds: {}, onboarded: true };
   await saveUserData();
   // 스톱워치/타이머도 초기화
   clearInterval(tIv); tIv = null; tRun = false;
   clearInterval(swIv); swIv = null;
   tSec = 600; swSec = 0;
+  breakShown = false;
   document.getElementById('btn-timer').textContent = '▶ 시작';
   document.getElementById('timer-done').classList.remove('show');
   tUpd(); swUpd(); practiceUpd();
@@ -128,8 +156,8 @@ window.resetProgress = async function() {
   initWeekTabs();
   renderMission();
   renderCalendar();
-  alert('✅ 초기화 완료! 오늘부터 Day 1입니다.');
-};
+  if (typeof renderStats === 'function') renderStats();
+}
 
 // ── 날짜 헬퍼 (계속) ─────────────────────────────────────
 const dayFromStart = () => {
@@ -1011,6 +1039,68 @@ function computeStreak() {
   return streak;
 }
 
+// 누적 연습시간 면적 그래프 — 시작일부터 오늘까지 계속 쌓이는 총량
+function renderCumulativeChart(ps) {
+  const box = document.getElementById('cumulative-chart');
+  const totalEl = document.getElementById('cumulative-total');
+  if (!box) return;
+
+  // 시작일 ~ 오늘까지 날짜별 누적 (연습 기록이 있는 구간만 의미 있게)
+  const start = new Date(userData.startDate || today());
+  const end = new Date(today());
+  const dayCount = Math.max(Math.floor((end - start) / 864e5) + 1, 1);
+  const N = Math.min(dayCount, 84); // 최대 84일
+
+  const pts = [];
+  let cum = 0;
+  for (let i = 0; i < N; i++) {
+    const dt = new Date(start); dt.setDate(dt.getDate() + i);
+    cum += (ps[ymd(dt)] || 0);
+    pts.push({ dt, cumMin: Math.round(cum / 60) });
+  }
+  const totalMin = pts.length ? pts[pts.length - 1].cumMin : 0;
+  if (totalEl) totalEl.textContent = fmtHM(totalMin * 60);
+
+  if (totalMin === 0) {
+    box.innerHTML = '<div style="text-align:center;color:#bbb;font-size:12px;padding:24px 0">아직 쌓인 연습 시간이 없어요.<br>연습을 시작하면 그래프가 우상향해요! 🏔️</div>';
+    return;
+  }
+
+  const W = 320, H = 150, padL = 32, padR = 10, padT = 12, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxCum = Math.max(totalMin, 10);
+  const x = i => padL + (plotW * i / Math.max(N - 1, 1));
+  const y = m => padT + plotH - (plotH * m / maxCum);
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.cumMin).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${x(N-1).toFixed(1)},${(padT+plotH).toFixed(1)} L${x(0).toFixed(1)},${(padT+plotH).toFixed(1)} Z`;
+  const grids = [0, Math.round(maxCum/2), maxCum];
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible">`;
+  svg += `<defs><linearGradient id="cumGrad" x1="0" y1="0" x2="0" y2="1">`
+       + `<stop offset="0%" stop-color="#40916C" stop-opacity="0.35"/>`
+       + `<stop offset="100%" stop-color="#40916C" stop-opacity="0.02"/></linearGradient></defs>`;
+  grids.forEach(g => {
+    const gy = y(g);
+    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#eee" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="9" fill="#bbb">${g}</text>`;
+  });
+  svg += `<path d="${areaPath}" fill="url(#cumGrad)"/>`;
+  svg += `<path d="${linePath}" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  // 마지막 점 강조
+  const last = pts[pts.length - 1];
+  svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="4" fill="#2D6A4F"/>`;
+  svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="8" fill="#2D6A4F" opacity="0.15"/>`;
+  // x축 날짜 (시작·중간·오늘)
+  [0, Math.floor((N-1)/2), N-1].forEach(i => {
+    const p = pts[i];
+    const label = `${p.dt.getMonth()+1}/${p.dt.getDate()}`;
+    svg += `<text x="${x(i).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#999">${label}</text>`;
+  });
+  svg += `</svg>`;
+  box.innerHTML = svg;
+}
+
 // 최근 14일 일별 연습시간 꺾은선 그래프 (SVG, 라이브러리 없음)
 function renderDailyLineChart(ps) {
   const box = document.getElementById('daily-line-chart');
@@ -1087,6 +1177,7 @@ function renderStats() {
 
   // 최근 14일 일별 연습시간 꺾은선 그래프
   renderDailyLineChart(ps);
+  renderCumulativeChart(ps);
 
   // 주차별 연습시간 막대그래프 (1~12주)
   const weekMin = [];
