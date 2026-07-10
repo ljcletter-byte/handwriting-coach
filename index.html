@@ -300,38 +300,8 @@
 
     <!-- 미션 탭 -->
     <div class="tab-content active" id="tab-mission">
-      <!-- 오늘의 미션 (최상단) -->
-      <div class="sec-label">오늘의 미션</div>
-      <div class="card fadein">
-        <div class="mission-header"><h2 id="mission-title">1주차: 선긋기 & 기초 획</h2><span class="mission-badge" id="mission-badge">Day 1</span></div>
-        <div id="mission-body"></div>
-      </div>
-
-      <!-- 10분 타이머 -->
-      <div class="sec-label">10분 타이머</div>
-      <div class="card timer-card fadein">
-        <div class="timer-display" id="timer-display">10:00</div>
-        <div class="timer-prog-bg"><div class="timer-prog" id="timer-prog" style="width:100%"></div></div>
-        <div style="margin:12px 0;padding:12px 16px;background:#f5f9f6;border-radius:8px;text-align:center;">
-  <div style="font-size:13px;color:#666;margin-bottom:4px;">실제 연습 시간</div>
-  <div id="stopwatch-display" style="font-size:24px;font-weight:600;color:#2d6a4f;font-variant-numeric:tabular-nums;">00:00</div>
-  <div id="practice-stats" style="font-size:12px;color:#888;margin-top:8px;">오늘 <strong>0분</strong> · 이번 주 <strong>0분</strong> · 전체 <strong>0분</strong></div>
-</div>
-        <div class="timer-btns">
-          <button class="btn btn-primary" id="btn-timer" onclick="timerToggle()">▶ 시작</button>
-          <button class="btn btn-default" onclick="timerReset()">↺ 초기화</button>
-        </div>
-        <div class="timer-done" id="timer-done">🎉 10분 완료! 오늘도 수고했어요</div>
-        <div class="wrist-break" id="wrist-break">
-          <button class="wrist-break-close" onclick="closeWristBreak()">✕</button>
-          <div class="wrist-break-icon">🤲</div>
-          <div class="wrist-break-title">잠깐! 손목 풀기 타임</div>
-          <div class="wrist-break-desc">벌써 5분이 지났어요. 손목을 시계·반시계 방향으로 5번씩 돌리고, 손가락을 쫙 폈다 접어보세요. 힘을 뺀 뒤 다시 시작하면 훨씬 편해요.</div>
-        </div>
-      </div>
-
-      <!-- 준비 루틴 (접이식) -->
-      <div class="accordion" id="acc-warmup">
+      <!-- 준비 루틴 (접이식, 미션 위) -->
+      <div class="accordion" id="acc-warmup" style="margin-top:0">
         <button class="accordion-head" onclick="toggleAccordion('acc-warmup')">
           <span>🤲 준비 루틴 — 시작 전 2분</span>
           <span class="accordion-arrow">▾</span>
@@ -351,6 +321,36 @@
             </div>
             <div class="quote-area" id="quote-text"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- 오늘의 미션 -->
+      <div class="sec-label">오늘의 미션</div>
+      <div class="card fadein">
+        <div class="mission-header"><h2 id="mission-title">1주차: 선긋기 & 기초 획</h2><span class="mission-badge" id="mission-badge">Day 1</span></div>
+        <div id="mission-body"></div>
+      </div>
+
+      <!-- 10분 타이머 -->
+      <div class="sec-label">10분 타이머</div>
+      <div class="card timer-card fadein">
+        <div class="timer-display" id="timer-display">10:00</div>
+        <div class="timer-prog-bg"><div class="timer-prog" id="timer-prog" style="width:100%"></div></div>
+        <div style="margin:12px 0;padding:12px 16px;background:#f5f9f6;border-radius:8px;text-align:center;">
+  <div style="font-size:13px;color:#666;margin-bottom:4px;">실제 연습 시간</div>
+  <div id="stopwatch-display" style="font-size:24px;font-weight:600;color:#2d6a4f;font-variant-numeric:tabular-nums;">00:00</div>
+  <div id="practice-stats" style="font-size:12px;color:#888;margin-top:8px;">오늘 <strong>0분</strong> · 이번 주 <strong>0분</strong> · 전체 <strong>0분</strong></div>
+</div>
+        <div class="timer-btns">
+          <button class="btn btn-primary" id="btn-timer" onclick="timerToggle()">▶ 시작</button>
+          <button class="btn btn-default" onclick="timerReset()">↺ 타이머 리셋</button>
+        </div>
+        <div class="timer-done" id="timer-done">🎉 10분 완료! 오늘도 수고했어요</div>
+        <div class="wrist-break" id="wrist-break">
+          <button class="wrist-break-close" onclick="closeWristBreak()">✕</button>
+          <div class="wrist-break-icon">🤲</div>
+          <div class="wrist-break-title">잠깐! 손목 풀기 타임</div>
+          <div class="wrist-break-desc">벌써 5분이 지났어요. 손목을 시계·반시계 방향으로 5번씩 돌리고, 손가락을 쫙 폈다 접어보세요. 힘을 뺀 뒤 다시 시작하면 훨씬 편해요.</div>
         </div>
       </div>
 
@@ -566,7 +566,6 @@
           </div>
         </div>
         <div class="bar-chart" id="dow-chart"></div>
-      </div>
       </div>
 
       <div class="card fadein">
