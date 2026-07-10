@@ -508,7 +508,7 @@ function commitPracticeTime() {
 window.timerReset = function() {
   clearInterval(tIv); tIv = null; tRun = false;
   clearInterval(swIv); swIv = null;
-  // 스톱워치 누적 시간을 오늘 기록에 저장
+  // 스톱워치 누적 시간을 오늘 기록에 저장 (연습한 시간은 사라지지 않고 저장됨)
   commitPracticeTime();
   saveUserData();
   tSec = 600;
@@ -517,6 +517,8 @@ window.timerReset = function() {
   document.getElementById('btn-timer').textContent = '▶ 시작';
   document.getElementById('timer-done').classList.remove('show');
   tUpd();
+  swUpd();
+  practiceUpd();
 };
 
 function beep() {
