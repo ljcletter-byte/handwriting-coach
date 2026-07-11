@@ -146,6 +146,7 @@ async function doReset() {
   uploadedImg = null;
   uploadedThumb = null;
   galleryCache = null;
+  journalDate = today();
   const hint = document.getElementById('upload-preview-hint');
   if (hint) hint.classList.remove('show');
   const ai = document.getElementById('ai-result');
@@ -624,7 +625,7 @@ window.saveJournal = async function() {
   const origText = btn.textContent;
   btn.disabled = true;
   btn.textContent = uploadedThumb ? '📤 사진 저장 중...' : '💾 저장 중...';
-  const t = today();
+  const t = journalDate; // 선택한 날짜 (기본값: 오늘)
   if (!userData.journals)     userData.journals = {};
   if (!userData.completedDays) userData.completedDays = {};
   if (!userData.practiceSeconds) userData.practiceSeconds = {};
@@ -635,7 +636,10 @@ window.saveJournal = async function() {
     document.getElementById('btn-timer').textContent = '▶ 시작';
   }
   if (swSec > 0) {
-    userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + swSec;
+    // 스톱워치로 잰 시간은 '실제로 연습한 오늘'에 누적합니다
+    // (지난 날짜 일지를 쓰더라도, 방금 연습한 시간은 오늘 기록이므로)
+    const realToday = today();
+    userData.practiceSeconds[realToday] = (userData.practiceSeconds[realToday] || 0) + swSec;
     swSec = 0;
     swUpd(); practiceUpd();
   }
@@ -700,13 +704,99 @@ function celebrateStamp() {
   window._stampTimer = setTimeout(() => el.classList.add('hidden'), 2200);
 }
 
-function loadJournal() {
-  const t = today(), j = (userData.journals || {})[t] || {};
+// ── 일지 작성 날짜 ────────────────────────────────────────
+// 기본은 오늘이지만, 지난 날짜를 골라 그날의 일지를 쓰거나 다시 피드백받을 수 있습니다.
+let journalDate = today();
+
+window.setJournalToday = function() {
+  journalDate = today();
+  const input = document.getElementById('journal-date');
+  if (input) input.value = journalDate;
+  loadJournal();
+};
+
+window.onJournalDateChange = function() {
+  const input = document.getElementById('journal-date');
+  if (!input || !input.value) return;
+  // 미래 날짜는 선택 불가
+  if (input.value > today()) {
+    alert('아직 오지 않은 날짜는 선택할 수 없어요.');
+    input.value = journalDate;
+    return;
+  }
+  journalDate = input.value;
+  loadJournal();
+};
+
+// 선택한 날짜가 몇 일차인지 계산 (미션 표시용)
+function dayNumOf(ds) {
+  const start = new Date(userData.startDate || ds);
+  const dt = new Date(ds);
+  return Math.min(Math.max(Math.floor((dt - start) / 864e5) + 1, 1), 84);
+}
+
+async function loadJournal() {
+  const t = journalDate;
+  const j = (userData.journals || {})[t] || {};
   document.getElementById('weakness-input').value = j.weakness || '';
   document.getElementById('feedback-input').value = j.feedback || '';
   // 자가 진단 복원
   selfCheckValue = j.selfCheck || null;
   renderSelfCheck();
+
+  // 날짜 입력창 동기화
+  const input = document.getElementById('journal-date');
+  if (input) { input.value = t; input.max = today(); }
+
+  // 오늘이 아닌 날짜면 안내 표시
+  const note = document.getElementById('journal-date-note');
+  const btnToday = document.getElementById('btn-journal-today');
+  if (note) {
+    if (t !== today()) {
+      const dn = dayNumOf(t);
+      const { w, d } = wkDay(dn);
+      note.innerHTML = `📅 <strong>${t}</strong> (Day ${dn}/84 · ${w}주차 ${d}일차)의 일지를 작성/수정 중이에요. 저장하면 그날 기록으로 반영됩니다.`;
+      note.classList.add('show');
+      if (btnToday) btnToday.style.display = '';
+    } else {
+      note.classList.remove('show');
+      if (btnToday) btnToday.style.display = 'none';
+    }
+  }
+
+  // 이전 미리보기/업로드 상태 초기화
+  uploadedImg = null;
+  uploadedThumb = null;
+  const preview = document.getElementById('upload-preview');
+  const hint = document.getElementById('upload-preview-hint');
+  const fname = document.getElementById('upload-filename');
+  if (preview) { preview.src = ''; preview.style.display = 'none'; preview.classList.add('collapsed'); }
+  if (hint) hint.classList.remove('show');
+  if (fname) fname.textContent = '';
+  const ai = document.getElementById('ai-result');
+  if (ai) { ai.innerHTML = ''; ai.classList.remove('show'); }
+
+  // 그날 저장된 사진이 있으면 불러와서 미리보기 + AI 재요청 가능하게
+  if (j.hasPhoto && window._currentUser) {
+    try {
+      const cached = galleryCache && galleryCache.find(it => it.ds === t);
+      let photo = cached ? cached.photo : null;
+      if (!photo) {
+        const ref = window._doc(window._db, 'users', window._currentUser.uid, 'journalPhotos', t);
+        const snap = await window._getDoc(ref);
+        if (snap.exists()) photo = snap.data().photo;
+      }
+      if (photo && journalDate === t) { // 그 사이 날짜가 바뀌지 않았을 때만
+        uploadedImg = photo;   // AI 재요청용
+        uploadedThumb = null;  // 이미 저장돼 있으니 재저장 불필요
+        if (preview) { preview.src = photo; preview.style.display = 'block'; preview.classList.add('collapsed'); }
+        if (hint) hint.classList.add('show');
+        if (fname) fname.textContent = '저장된 사진을 불러왔어요';
+      }
+    } catch (e) {
+      console.error('저장된 사진 불러오기 오류:', e);
+    }
+  }
 }
 
 // ── 자가 진단 ─────────────────────────────────────────────
@@ -715,10 +805,12 @@ function selfCheckLabel(v) {
   return { good: '😊 잘됨', soso: '😐 보통', hard: '😥 아쉬움' }[v] || '-';
 }
 function renderSelfCheck() {
-  // 이번 주 관찰 포인트를 질문에 반영
-  const mw = WEEKS[selW];
+  // 선택한 일지 날짜가 속한 주의 관찰 포인트를 질문에 반영
+  const dn = (typeof journalDate !== 'undefined') ? dayNumOf(journalDate) : 1;
+  const { w } = wkDay(dn);
+  const mw = WEEKS[w] || WEEKS[selW];
   const q = document.getElementById('selfcheck-q');
-  if (q && mw) q.innerHTML = `이번 주 관찰 포인트 <strong>「${mw.focus}」</strong>를 얼마나 지켰나요?`;
+  if (q && mw) q.innerHTML = `관찰 포인트 <strong>「${mw.focus}」</strong>를 얼마나 지켰나요?`;
   // 선택 상태 표시
   document.querySelectorAll('.selfcheck-opt').forEach(b => {
     b.classList.toggle('selected', b.dataset.v === selfCheckValue);
@@ -751,7 +843,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 window.getAIFeedback = async function() {
   const weak = document.getElementById('weakness-input').value.trim();
-  const mw = WEEKS[selW], md = mw.days[selD - 1], dn = (selW-1)*7 + selD;
+  // 선택한 일지 날짜의 미션을 기준으로 피드백 (지난 날짜도 가능)
+  const dn = dayNumOf(journalDate);
+  const { w: jw, d: jd } = wkDay(dn);
+  const mw = WEEKS[jw], md = mw.days[jd - 1];
+  const isPast = journalDate !== today();
   const loadingEl = document.getElementById('ai-loading');
   const resultEl  = document.getElementById('ai-result');
   loadingEl.classList.add('show');
@@ -766,12 +862,12 @@ window.getAIFeedback = async function() {
     const mt = uploadedImg.split(';')[0].split(':')[1] || 'image/jpeg';
     uc.push({ type: 'image', source: { type: 'base64', media_type: mt, data: b } });
   }
-  let pr = `당신은 한국어 손글씨 교정 전문 AI 코치입니다.\n현재 Day ${dn}/84 (${selW}주차 ${selD}일차), 주제: ${mw.title}\nPart 1: ${md.p1}\nPart 2: ${md.p2}\nPart 3: ${md.p3}`;
+  let pr = `당신은 한국어 손글씨 교정 전문 AI 코치입니다.\n대상 날짜: ${journalDate}${isPast ? ' (지난 연습에 대한 피드백)' : ''}\nDay ${dn}/84 (${jw}주차 ${jd}일차), 주제: ${mw.title}\n이번 주 관찰 포인트: ${mw.focus}\nPart 1: ${md.p1}\nPart 2: ${md.p2}\nPart 3: ${md.p3}`;
   if (weak) pr += `\n학습자가 발견한 불규칙 부분: ${weak}`;
   pr += uploadedImg
     ? '\n\n업로드된 글씨 사진을 분석해 피드백을 제공해주세요.'
-    : '\n\n(사진 없음 — 오늘 미션 기반 일반 연습 포인트와 격려 메시지를 제공해주세요.)';
-  pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **내일의 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
+    : '\n\n(사진 없음 — 해당 날짜 미션 기반 일반 연습 포인트와 격려 메시지를 제공해주세요.)';
+  pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **다음 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
   uc.push({ type: 'text', text: pr });
 
   // 자동 재시도: 최대 3회, 실패할 때마다 조금 더 기다렸다가 다시 시도
