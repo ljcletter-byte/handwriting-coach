@@ -95,7 +95,14 @@
       .journal-grid{grid-template-columns:minmax(240px,360px) 1fr;align-items:start;gap:28px}
       .journal-col-photo{position:sticky;top:16px}
     }
-    .journal-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .journal-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+    .journal-date-picker{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .journal-date-input{padding:7px 10px;border:1.5px solid #E5E1D8;border-radius:8px;font-size:13px;font-family:inherit;color:#333;cursor:pointer}
+    .journal-date-input:focus{outline:none;border-color:#2D6A4F}
+    .btn-today{background:#fff;border:1.5px solid #E5E1D8;color:#666;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
+    .btn-today:hover{border-color:#2D6A4F;color:#2D6A4F}
+    .journal-date-note{display:none;background:#FFF8E1;border:1px solid #FFE08A;border-radius:8px;padding:9px 12px;font-size:12px;color:#8A6D00;margin-bottom:14px;line-height:1.5}
+    .journal-date-note.show{display:block}
     .btn-view-history{background:#fff;border:1.5px solid #D9D4CB;color:#2D6A4F;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
     .btn-view-history:hover{background:#f5f9f6;border-color:#2D6A4F}
     .gallery-status{text-align:center;color:#999;font-size:13px;padding:32px 0;line-height:1.6}
@@ -376,12 +383,17 @@
     <div class="tab-content" id="tab-journal">
       <div class="card journal-card fadein">
         <div class="journal-top-row">
-          <div class="field-label" style="margin:0">📓 오늘의 일지</div>
+          <div class="journal-date-picker">
+            <span class="field-label" style="margin:0">📓 일지 작성 날짜</span>
+            <input type="date" id="journal-date" class="journal-date-input" onchange="onJournalDateChange()">
+            <button class="btn-today" id="btn-journal-today" onclick="setJournalToday()">오늘로</button>
+          </div>
           <button class="btn-view-history" onclick="switchTab('calendar')">📖 지난 기록 보기</button>
         </div>
+        <div class="journal-date-note" id="journal-date-note"></div>
         <div class="journal-grid">
           <div class="journal-col-photo">
-            <div class="field-label">📷 오늘 연습 사진 업로드</div>
+            <div class="field-label">📷 연습 사진 업로드</div>
             <div class="upload-area">
               <input type="file" id="file-input" accept="image/*">
               <span class="upload-icon">📸</span>
