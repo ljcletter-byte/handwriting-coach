@@ -8,6 +8,31 @@ const ymd = d => {
 };
 const today = () => ymd(new Date());
 
+// ── 접근성: 글자 크기 조절 ────────────────────────────────
+// 연세 있으신 분들도 편하게 쓰실 수 있도록, 화면 전체를 확대하는 옵션입니다.
+// 로그인 전 화면(온보딩 등)에도 바로 적용되도록 스크립트 로드 시점에 즉시 실행합니다.
+const TEXT_SIZE_LEVELS = ['', 'text-lg', 'text-xl'];
+const TEXT_SIZE_LABELS = { '': '', 'text-lg': '크게', 'text-xl': '아주크게' };
+function applyTextSize(level) {
+  document.body.classList.remove('text-lg', 'text-xl');
+  if (level) document.body.classList.add(level);
+  const ind = document.getElementById('text-size-indicator');
+  if (ind) ind.textContent = level ? ` ${TEXT_SIZE_LABELS[level]}` : '';
+}
+(function initTextSize() {
+  const saved = localStorage.getItem('textSizeLevel') || '';
+  const apply = () => applyTextSize(TEXT_SIZE_LEVELS.includes(saved) ? saved : '');
+  if (document.body) apply();
+  else document.addEventListener('DOMContentLoaded', apply);
+})();
+window.cycleTextSize = function() {
+  const current = TEXT_SIZE_LEVELS.find(l => l && document.body.classList.contains(l)) || '';
+  const idx = (TEXT_SIZE_LEVELS.indexOf(current) + 1) % TEXT_SIZE_LEVELS.length;
+  const next = TEXT_SIZE_LEVELS[idx];
+  applyTextSize(next);
+  try { localStorage.setItem('textSizeLevel', next); } catch (e) { /* 저장 실패해도 이번 세션엔 적용됨 */ }
+};
+
 // ── Firebase 데이터 관리 ──────────────────────────────────
 let userData = {
   startDate: today(),
