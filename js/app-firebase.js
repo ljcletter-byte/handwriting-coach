@@ -198,6 +198,7 @@ window.switchTab = function(name) {
 
 window.openMoreSheet = function() {
   document.getElementById('more-sheet').classList.remove('hidden');
+  updateNotifToggleUI();
 };
 window.closeMoreSheet = function() {
   document.getElementById('more-sheet').classList.add('hidden');
@@ -218,6 +219,128 @@ function updateDash() {
   document.getElementById('pct-text').textContent = pct + '%';
   document.getElementById('progress-fill').style.width = pct + '%';
 }
+
+// ── 리마인더 알림 ─────────────────────────────────────────
+// "앱을 며칠 안 열면 잊어버린다"는 문제를 완화하기 위해,
+// 앱을 열 때마다 마지막 완료일을 기준으로 며칠 지났는지 계산해서
+// 따뜻한 톤의 배너를 보여줍니다. (죄책감을 주지 않고 격려하는 문구로)
+let reminderDismissed = false;
+
+// 오늘 기준으로 마지막 완료일로부터 며칠이 지났는지 계산
+// 반환값: 0(오늘 이미 함), 1(어제까지만 함), 2 이상(며칠 지남), null(기록이 아예 없는 신규 사용자)
+function daysSinceLastPractice() {
+  const cd = userData.completedDays || {};
+  const dates = Object.keys(cd).filter(k => cd[k]);
+  if (dates.length === 0) return null; // 아직 한 번도 완료 기록이 없음 (온보딩 케이스)
+  dates.sort(); // 문자열 날짜 정렬 (YYYY-MM-DD 형식이라 문자열 정렬 = 날짜 정렬)
+  const lastDate = dates[dates.length - 1];
+  const last = new Date(lastDate);
+  const now = new Date(today());
+  return Math.round((now - last) / 864e5);
+}
+
+function maybeShowReminder() {
+  const banner = document.getElementById('reminder-banner');
+  if (!banner || reminderDismissed) return;
+
+  const gap = daysSinceLastPractice();
+  // 오늘 이미 했거나(0), 신규 사용자(null)면 배너를 보여주지 않음
+  if (gap === null || gap <= 0) {
+    banner.classList.remove('show');
+    return;
+  }
+
+  const iconEl = document.getElementById('reminder-banner-icon');
+  const textEl = document.getElementById('reminder-banner-text');
+  let icon, msg;
+  if (gap === 1) {
+    icon = '🌱';
+    msg = '어제는 쉬셨네요. 오늘 10분만 다시 이어가볼까요?';
+  } else if (gap <= 3) {
+    icon = '🌤️';
+    msg = `${gap}일 동안 연습을 못하셨어요. 지금 시작해도 전혀 늦지 않았어요!`;
+  } else if (gap <= 7) {
+    icon = '💌';
+    msg = `${gap}일 만이에요! 잠깐 5분이라도 다시 시작해보면 어떨까요?`;
+  } else {
+    icon = '🌿';
+    msg = '오랜만이에요. 부담 갖지 마시고, 오늘은 한 글자만 써봐도 충분해요.';
+  }
+  fillReminderBanner(banner, iconEl, textEl, icon, msg);
+
+  // 알림 권한이 이미 허용된 상태라면, 앱을 여는 순간 OS 알림도 함께 띄워줌
+  // (앱을 아예 안 열면 발송할 방법이 없으므로, 열었을 때 눈에 더 잘 띄게 하는 보조 수단)
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    try {
+      new Notification('12주 악필 교정 챌린저', {
+        body: msg,
+        icon: 'icon-192.png',
+        tag: 'daily-reminder' // 같은 태그로 중복 알림 방지
+      });
+    } catch (e) { console.error('알림 표시 오류:', e); }
+  }
+}
+
+function fillReminderBanner(banner, iconEl, textEl, icon, msg) {
+  iconEl.textContent = icon;
+  textEl.textContent = msg;
+  banner.classList.add('show');
+}
+
+window.dismissReminder = function() {
+  reminderDismissed = true;
+  const banner = document.getElementById('reminder-banner');
+  if (banner) banner.classList.remove('show');
+};
+
+// 더보기 시트의 "리마인더 알림" 버튼 표시를 현재 권한 상태에 맞게 갱신
+function updateNotifToggleUI() {
+  const title = document.getElementById('notif-toggle-title');
+  const desc = document.getElementById('notif-toggle-desc');
+  if (!title || !desc) return;
+  if (typeof Notification === 'undefined') {
+    title.textContent = '리마인더 알림 (미지원)';
+    desc.textContent = '이 브라우저는 알림 기능을 지원하지 않아요';
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    title.textContent = '리마인더 알림 켜짐 ✓';
+    desc.textContent = '앱을 열 때 며칠 못했으면 OS 알림으로도 알려드려요';
+  } else if (Notification.permission === 'denied') {
+    title.textContent = '리마인더 알림 (차단됨)';
+    desc.textContent = '브라우저 설정에서 알림 권한을 허용해주세요';
+  } else {
+    title.textContent = '리마인더 알림 켜기';
+    desc.textContent = '앱을 열 때 며칠 못했으면 알려드려요';
+  }
+}
+
+window.toggleNotificationPref = async function() {
+  if (typeof Notification === 'undefined') {
+    alert('이 브라우저는 알림 기능을 지원하지 않아요.');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    alert('알림이 차단되어 있어요. 브라우저(또는 홈 화면 앱) 설정에서 이 사이트의 알림 권한을 허용한 뒤 다시 시도해주세요.');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    // 이미 켜져 있으면, 테스트 알림을 한 번 보여줘서 잘 작동하는지 확인시켜줌
+    try {
+      new Notification('12주 악필 교정 챌린저', { body: '리마인더 알림이 켜져 있어요! 👍', icon: 'icon-192.png' });
+    } catch (e) { /* 무시 */ }
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    updateNotifToggleUI();
+    if (perm === 'granted') {
+      new Notification('12주 악필 교정 챌린저', { body: '리마인더 알림이 켜졌어요! 며칠 연습을 못하면 앱을 열 때 알려드릴게요.', icon: 'icon-192.png' });
+    }
+  } catch (e) {
+    console.error('알림 권한 요청 오류:', e);
+  }
+};
 
 // ── 주차 탭 ───────────────────────────────────────────────
 let selW = 1, selD = 1;
@@ -675,6 +798,7 @@ window.saveJournal = async function() {
   userData.completedDays[t] = true;
   await saveUserData();
   updateDash(); renderCalendar();
+  if (t === today()) { const rb = document.getElementById('reminder-banner'); if (rb) rb.classList.remove('show'); }
   btn.disabled = false;
   btn.textContent = origText;
   const ok = document.getElementById('save-ok');
@@ -1399,6 +1523,7 @@ window.initApp = function() {
   swUpd();
   practiceUpd();
   maybeShowOnboard();
+  maybeShowReminder();
 };
 
 // ── 첫 사용자 안내(온보딩) ────────────────────────────────
