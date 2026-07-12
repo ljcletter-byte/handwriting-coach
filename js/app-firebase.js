@@ -827,15 +827,52 @@ window.selectSelfCheck = function(v) {
 const AI_WORKER_URL = 'https://handwriting-ai-coach.ljcletter.workers.dev';
 
 // 실제 API 호출 (한 번의 시도) — 성공 시 텍스트 반환, 실패 시 예외
+// 예외 객체에 .status와 .retryable을 함께 실어서, 호출한 쪽에서
+// "재시도할 가치가 있는 오류인지"를 판단할 수 있게 합니다.
 async function requestAIFeedback(uc) {
-  const res = await fetch(AI_WORKER_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: uc }] })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-  if (!data.content) throw new Error('응답이 비어 있습니다');
+  let res;
+  try {
+    res = await fetch(AI_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: uc }] })
+    });
+  } catch (networkErr) {
+    // fetch 자체가 실패 (오프라인, DNS, CORS 등) — 재시도 가치 있음
+    const e = new Error('네트워크 연결에 실패했습니다 (' + networkErr.message + ')');
+    e.retryable = true;
+    throw e;
+  }
+
+  // 응답 본문을 먼저 텍스트로 받고, JSON 파싱은 그 다음에 안전하게 시도
+  // (Worker나 Cloudflare가 에러 시 HTML/평문을 줄 수도 있어서 res.json()이 바로 깨질 수 있음)
+  const rawText = await res.text();
+  let data = null;
+  try { data = rawText ? JSON.parse(rawText) : null; } catch (_) { /* JSON이 아님 */ }
+
+  // 재시도해볼 만한 상태 코드: 429(속도제한), 403(신규계정 검토 등 일시적일 수 있음),
+  // 500/502/503/504(서버 오류), 529(Anthropic 과부하)
+  const RETRYABLE_STATUSES = new Set([403, 408, 409, 425, 429, 500, 502, 503, 504, 529]);
+
+  if (!res.ok) {
+    const detail = (data && data.error && (data.error.message || JSON.stringify(data.error)))
+      || rawText.slice(0, 200)
+      || '(응답 본문 없음)';
+    const e = new Error(`HTTP ${res.status}: ${detail}`);
+    e.status = res.status;
+    e.retryable = RETRYABLE_STATUSES.has(res.status);
+    throw e;
+  }
+  if (data && data.error) {
+    const e = new Error(data.error.message || JSON.stringify(data.error));
+    e.retryable = true; // 200으로 왔지만 error 필드가 있는 경우도 일단 재시도 대상으로
+    throw e;
+  }
+  if (!data || !data.content) {
+    const e = new Error('응답이 비어 있습니다: ' + rawText.slice(0, 200));
+    e.retryable = true;
+    throw e;
+  }
   return data.content.map(i => i.text || '').join('');
 }
 
@@ -870,8 +907,9 @@ window.getAIFeedback = async function() {
   pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **다음 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
   uc.push({ type: 'text', text: pr });
 
-  // 자동 재시도: 최대 3회, 실패할 때마다 조금 더 기다렸다가 다시 시도
-  const MAX_TRIES = 3;
+  // 자동 재시도: 최대 5회, 재시도 가능한 오류일 때만 계속 시도
+  // (재시도해도 소용없는 오류라면 바로 멈춰서 사용자를 불필요하게 기다리게 하지 않음)
+  const MAX_TRIES = 5;
   let lastErr = null;
   for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
     try {
@@ -887,15 +925,22 @@ window.getAIFeedback = async function() {
       return; // 성공 → 종료
     } catch (err) {
       lastErr = err;
-      console.error(`AI 피드백 오류 (시도 ${attempt}/${MAX_TRIES}):`, err);
-      if (attempt < MAX_TRIES) {
-        await sleep(attempt * 1500); // 1.5초 → 3초 점점 길게 대기 후 재시도
+      console.error(`AI 피드백 오류 (시도 ${attempt}/${MAX_TRIES}, status=${err.status || '-'}, retryable=${err.retryable}):`, err);
+      const canRetry = err.retryable !== false; // 명시적으로 false가 아니면 재시도 대상으로 취급
+      if (attempt < MAX_TRIES && canRetry) {
+        // 지수 백오프 + 약간의 무작위 지연(여러 요청이 동시에 몰리는 것을 완화)
+        const backoff = Math.min(1500 * Math.pow(1.7, attempt - 1), 8000);
+        const jitter = Math.random() * 400;
+        await sleep(backoff + jitter);
+      } else if (!canRetry) {
+        break; // 재시도해도 소용없는 오류면 바로 중단
       }
     }
   }
 
-  // 3번 모두 실패
-  resultEl.innerHTML = '😥 AI 코치 연결에 몇 번 실패했어요.<br>잠시 후 <strong>"✨ 피드백 받기"</strong>를 다시 눌러주세요.<br><span style="font-size:11px;color:#999">(오류: ' + (lastErr ? lastErr.message : '알 수 없음') + ')</span>';
+  // 모두 실패 (또는 재시도 불가능한 오류로 중단)
+  const statusInfo = lastErr && lastErr.status ? ` [HTTP ${lastErr.status}]` : '';
+  resultEl.innerHTML = '😥 AI 코치 연결에 실패했어요.<br>잠시 후 <strong>"✨ 피드백 받기"</strong>를 다시 눌러주세요.<br><span style="font-size:11px;color:#999">(오류' + statusInfo + ': ' + (lastErr ? lastErr.message : '알 수 없음') + ')</span>';
   resultEl.classList.add('show');
   loadingEl.classList.remove('show');
   document.getElementById('btn-ai').disabled = false;
