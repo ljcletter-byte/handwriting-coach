@@ -103,6 +103,14 @@
     .btn-today:hover{border-color:#2D6A4F;color:#2D6A4F}
     .journal-date-note{display:none;background:#FFF8E1;border:1px solid #FFE08A;border-radius:8px;padding:9px 12px;font-size:12px;color:#8A6D00;margin-bottom:14px;line-height:1.5}
     .journal-date-note.show{display:block}
+
+    /* 리마인더 배너 */
+    .reminder-banner{display:none;align-items:center;gap:10px;background:linear-gradient(135deg,#F0F9F0,#E8F5E9);border:1.5px solid #B7E4C7;border-radius:12px;padding:12px 14px;margin:0 0 14px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+    .reminder-banner.show{display:flex}
+    .reminder-banner-icon{font-size:22px;flex-shrink:0}
+    .reminder-banner-text{flex:1;font-size:13px;color:#2D6A4F;line-height:1.5;font-weight:500}
+    .reminder-banner-close{background:none;border:none;color:#7FA88F;font-size:15px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1}
+    .reminder-banner-close:hover{color:#2D6A4F}
     .btn-view-history{background:#fff;border:1.5px solid #D9D4CB;color:#2D6A4F;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
     .btn-view-history:hover{background:#f5f9f6;border-color:#2D6A4F}
     .gallery-status{text-align:center;color:#999;font-size:13px;padding:32px 0;line-height:1.6}
@@ -299,6 +307,13 @@
     <div class="progress-card fadein">
       <div class="progress-header"><span>전체 진행률</span><strong id="pct-text">0%</strong></div>
       <div class="progress-bg"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- 리마인더 배너: 며칠 연습을 못했을 때 앱을 열면 따뜻하게 알려줌 -->
+    <div class="reminder-banner" id="reminder-banner">
+      <span class="reminder-banner-icon" id="reminder-banner-icon">🌱</span>
+      <span class="reminder-banner-text" id="reminder-banner-text"></span>
+      <button class="reminder-banner-close" onclick="dismissReminder()">✕</button>
     </div>
 
     <nav class="nav-tabs" id="top-nav-hidden" style="display:none">
@@ -737,6 +752,10 @@
     <button class="sheet-item" onclick="switchTab('posture'); closeMoreSheet()">
       <span class="sheet-item-icon">🧘</span>
       <div><div class="sheet-item-title">자세 가이드</div><div class="sheet-item-desc">바른 자세 · 손목 힘 빼는 법</div></div>
+    </button>
+    <button class="sheet-item" onclick="toggleNotificationPref()" id="btn-notif-toggle">
+      <span class="sheet-item-icon">🔔</span>
+      <div><div class="sheet-item-title" id="notif-toggle-title">리마인더 알림 켜기</div><div class="sheet-item-desc" id="notif-toggle-desc">앱을 열 때 며칠 못했으면 알려드려요</div></div>
     </button>
     <button class="sheet-cancel" onclick="closeMoreSheet()">닫기</button>
   </div>
