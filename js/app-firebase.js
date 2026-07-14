@@ -432,6 +432,170 @@ function renderGridExamples() {
   });
 }
 
+// ── 따라쓰기 연습지 PDF ────────────────────────────────────
+// jsPDF는 한글 폰트를 기본 내장하지 않아 텍스트를 직접 그리면 깨지므로,
+// 브라우저가 이미 로드해둔 웹폰트(Noto Serif KR / Gaegu)로 캔버스에 먼저
+// 그린 뒤 그 캔버스를 이미지로 PDF에 넣는 방식을 씁니다. (글자 깨짐 없음)
+let _jspdfLoading = null;
+function ensureJsPDFLoaded() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (_jspdfLoading) return _jspdfLoading;
+  _jspdfLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('PDF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'));
+    document.head.appendChild(s);
+  });
+  return _jspdfLoading;
+}
+
+// 원고지 스타일 격자 칸 하나를 캔버스에 그림 (guide=null이면 빈 칸, 문자가 있으면 연한 회색 예시 글자 표시)
+function drawGridCell(ctx, x, y, size, guide, fontFamily) {
+  const r = size * 0.12;
+  ctx.strokeStyle = '#cfd8d2';
+  ctx.lineWidth = Math.max(1, size * 0.012);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + size, y, x + size, y + size, r);
+  ctx.arcTo(x + size, y + size, x, y + size, r);
+  ctx.arcTo(x, y + size, x, y, r);
+  ctx.arcTo(x, y, x + size, y, r);
+  ctx.closePath();
+  ctx.fillStyle = '#fbfcfb';
+  ctx.fill();
+  ctx.stroke();
+  // 십자 보조선 (원고지 느낌)
+  ctx.strokeStyle = '#e3ebe6';
+  ctx.lineWidth = Math.max(1, size * 0.01);
+  ctx.beginPath();
+  ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size);
+  ctx.moveTo(x, y + size / 2); ctx.lineTo(x + size, y + size / 2);
+  ctx.stroke();
+  if (guide) {
+    ctx.fillStyle = '#b7c3bc';
+    ctx.font = `${Math.round(size * 0.62)}px ${fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(guide, x + size / 2, y + size / 2 + size * 0.03);
+  }
+}
+
+// 글자 배열을 격자 한 줄에 그리고(guideRow=true면 예시 글자 포함, false면 빈 칸),
+// 공백은 칸을 띄우지 않고 좁은 간격만 줌
+function drawCharRow(ctx, chars, x, y, cellSize, gap, guideRow, fontFamily) {
+  let cx = x;
+  chars.forEach(ch => {
+    if (ch === ' ') { cx += cellSize * 0.35; return; }
+    drawGridCell(ctx, cx, y, cellSize, guideRow ? ch : null, fontFamily);
+    cx += cellSize + gap;
+  });
+  return cx;
+}
+
+window.downloadTracingPDF = async function() {
+  const btn = document.getElementById('btn-pdf-download');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 만드는 중...'; }
+  try {
+    await ensureJsPDFLoaded();
+    await (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve());
+
+    const mw = WEEKS[selW], md = mw.days[selD - 1];
+    const dayNum = (selW - 1) * 7 + selD;
+    const fam = FONT_FAMILY[practiceFont] || FONT_FAMILY.serif;
+    const fontLabel = practiceFont === 'gaegu' ? '개구쟁이' : '명조(교본)';
+
+    // A4 캔버스 준비 (약 200dpi 상당 해상도)
+    const PX_PER_MM = 8;
+    const PAGE_W = 210 * PX_PER_MM, PAGE_H = 297 * PX_PER_MM;
+    const MARGIN = 15 * PX_PER_MM;
+    const CONTENT_W = PAGE_W - MARGIN * 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = PAGE_W; canvas.height = PAGE_H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+
+    let y = MARGIN;
+
+    // 헤더
+    ctx.fillStyle = '#2D6A4F';
+    ctx.font = `700 ${Math.round(6.2*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('12주 악필 교정 챌린저', MARGIN, y + 6*PX_PER_MM);
+    ctx.fillStyle = '#666';
+    ctx.font = `500 ${Math.round(3.6*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(today() + ' 발급', PAGE_W - MARGIN, y + 6*PX_PER_MM);
+    y += 9*PX_PER_MM;
+
+    ctx.fillStyle = '#222';
+    ctx.font = `700 ${Math.round(5.4*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`Day ${dayNum} · ${selW}주차 ${selD}일차 따라쓰기 연습지`, MARGIN, y + 5.4*PX_PER_MM);
+    y += 8.5*PX_PER_MM;
+
+    ctx.fillStyle = '#7FA88F';
+    ctx.font = `400 ${Math.round(3.4*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
+    ctx.fillText(`이번 주 관찰 포인트: ${mw.focus}  ·  예시 글씨체: ${fontLabel}`, MARGIN, y + 3.4*PX_PER_MM);
+    y += 7*PX_PER_MM;
+
+    ctx.strokeStyle = '#E5E1D8'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(MARGIN, y); ctx.lineTo(PAGE_W - MARGIN, y); ctx.stroke();
+    y += 7*PX_PER_MM;
+
+    // 섹션 그리는 헬퍼: 라벨 + 설명 + 예시줄(회색 글자) + 빈 연습줄 여러 개
+    function drawSection(label, text, desc, practiceRows) {
+      ctx.fillStyle = '#2D6A4F';
+      ctx.font = `700 ${Math.round(4.2*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
+      ctx.fillText(label, MARGIN, y + 4.2*PX_PER_MM);
+      y += 6*PX_PER_MM;
+      ctx.fillStyle = '#888';
+      ctx.font = `400 ${Math.round(3.2*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
+      ctx.fillText(desc, MARGIN, y + 3.2*PX_PER_MM);
+      y += 6.5*PX_PER_MM;
+
+      const chars = [...text];
+      const gap = 1.6 * PX_PER_MM;
+      // 글자 수에 맞춰 칸 크기를 조절해서 한 줄에 모두 들어가도록 함
+      let cellSize = 13 * PX_PER_MM;
+      const neededW = chars.reduce((w, ch) => w + (ch === ' ' ? cellSize*0.35 : cellSize + gap), 0);
+      if (neededW > CONTENT_W) cellSize = Math.max(7*PX_PER_MM, (CONTENT_W - chars.length*gap) / chars.length);
+
+      // 예시 줄 (회색 글자)
+      drawCharRow(ctx, chars, MARGIN, y, cellSize, gap, true, fam);
+      y += cellSize + 3*PX_PER_MM;
+      // 빈 연습 줄들
+      for (let i = 0; i < practiceRows; i++) {
+        drawCharRow(ctx, chars, MARGIN, y, cellSize, gap, false, fam);
+        y += cellSize + 3*PX_PER_MM;
+      }
+      y += 4*PX_PER_MM;
+    }
+
+    drawSection('✍️ Part 2 · 단어', md.p2, md.p2d, 4);
+    drawSection('✍️ Part 3 · 문장', md.p3, md.p3d, 3);
+
+    // 푸터
+    ctx.fillStyle = '#B7C3BC';
+    ctx.font = `400 ${Math.round(3*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('12주 악필 교정 챌린저 · ljcletter-byte.github.io/handwriting-coach', PAGE_W/2, PAGE_H - 8*PX_PER_MM);
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    pdf.save(`악필교정_Day${dayNum}_따라쓰기연습지.pdf`);
+  } catch (err) {
+    console.error('PDF 생성 오류:', err);
+    alert('연습지를 만드는 중 문제가 생겼어요. 인터넷 연결을 확인하고 다시 시도해주세요.\n(' + err.message + ')');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🖨️ 오늘의 따라쓰기 연습지 PDF 받기'; }
+  }
+};
+
 function renderMission() {
   const mw = WEEKS[selW], md = mw.days[selD - 1];
   document.getElementById('mission-title').textContent = selW + '주차: ' + mw.title;
@@ -447,6 +611,7 @@ function renderMission() {
       <button class="font-btn${practiceFont==='serif'?' active':''}" onclick="setPracticeFont('serif')">명조 (교본)</button>
       <button class="font-btn${practiceFont==='gaegu'?' active':''}" onclick="setPracticeFont('gaegu')">개구쟁이</button>
     </div>
+    <button class="btn-pdf-download" id="btn-pdf-download" onclick="downloadTracingPDF()">🖨️ 오늘의 따라쓰기 연습지 PDF 받기</button>
     <div class="mission-part">
       <div class="part-badge part-1">Part 1 · 선긋기</div>
       <h3>${md.p1}</h3><p>${md.p1d}</p>
