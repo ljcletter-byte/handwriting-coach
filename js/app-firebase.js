@@ -80,6 +80,129 @@ async function saveUserData() {
   }
 }
 
+// ── 자동 백업 ─────────────────────────────────────────────
+// 1) 7일마다 자동으로 스냅샷 저장  2) 초기화 직전에는 반드시 자동 백업
+// (초기화 사고가 있었던 만큼, 사용자가 깜빡해도 항상 안전망이 있도록 함)
+const MAX_BACKUPS = 10;
+
+// 현재 userData의 텍스트 데이터(사진 제외 — 사진은 이미 별도 컬렉션이라 안전함)를
+// users/{uid}/backups/{backupId} 문서로 저장
+async function createBackupSnapshot(kind) {
+  const user = window._currentUser;
+  if (!user) return null;
+  try {
+    const ts = new Date();
+    const stamp = ymd(ts) + '_' + String(ts.getHours()).padStart(2,'0') + String(ts.getMinutes()).padStart(2,'0') + String(ts.getSeconds()).padStart(2,'0');
+    const backupId = `${kind}-${stamp}`;
+    const ref = window._doc(window._db, 'users', user.uid, 'backups', backupId);
+    await window._setDoc(ref, {
+      kind, // 'auto'(7일 주기) 또는 'prereset'(초기화 직전)
+      savedAt: ts.toISOString(),
+      startDate: userData.startDate || null,
+      completedDays: userData.completedDays || {},
+      journals: userData.journals || {},
+      practiceSeconds: userData.practiceSeconds || {},
+    });
+    return backupId;
+  } catch (e) {
+    console.error('자동 백업 저장 오류:', e);
+    return null;
+  }
+}
+
+// 오래된 백업 정리: 최신 MAX_BACKUPS개만 남기고 나머지는 삭제
+async function pruneOldBackups() {
+  const user = window._currentUser;
+  if (!user) return;
+  try {
+    const col = window._collection(window._db, 'users', user.uid, 'backups');
+    const snap = await window._getDocs(col);
+    const docs = [];
+    snap.forEach(d => docs.push({ id: d.id, savedAt: (d.data() || {}).savedAt || '' }));
+    docs.sort((a, b) => b.savedAt.localeCompare(a.savedAt)); // 최신순
+    const toDelete = docs.slice(MAX_BACKUPS);
+    for (const d of toDelete) {
+      try { await window._deleteDoc(window._doc(window._db, 'users', user.uid, 'backups', d.id)); }
+      catch (e) { console.error('오래된 백업 삭제 오류:', e); }
+    }
+  } catch (e) {
+    console.error('백업 정리 오류:', e);
+  }
+}
+
+// 앱을 열 때마다 확인: 마지막 자동 백업으로부터 7일 이상 지났으면 새로 백업
+async function maybeAutoBackup() {
+  const last = userData.lastAutoBackup;
+  const gap = last ? Math.round((new Date(today()) - new Date(last)) / 864e5) : 999;
+  if (gap < 7) return;
+  const id = await createBackupSnapshot('auto');
+  if (id) {
+    userData.lastAutoBackup = today();
+    await saveUserData();
+    pruneOldBackups(); // 결과를 기다릴 필요 없음(백그라운드로 진행)
+  }
+}
+
+// 통계 탭의 "자동 백업 기록" 목록 렌더링
+async function renderBackupList() {
+  const el = document.getElementById('backup-list');
+  if (!el) return;
+  const user = window._currentUser;
+  if (!user) { el.innerHTML = '<div class="backup-empty">로그인이 필요합니다</div>'; return; }
+  el.innerHTML = '<div class="backup-empty">불러오는 중...</div>';
+  try {
+    const col = window._collection(window._db, 'users', user.uid, 'backups');
+    const snap = await window._getDocs(col);
+    const docs = [];
+    snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+    if (docs.length === 0) {
+      el.innerHTML = '<div class="backup-empty">아직 자동 백업이 없어요. 앱을 사용하면서 7일마다 자동으로 쌓여요.</div>';
+      return;
+    }
+    docs.sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+    el.innerHTML = docs.map(b => {
+      const dt = b.savedAt ? new Date(b.savedAt) : null;
+      const dateStr = dt ? `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` : b.id;
+      const doneCnt = Object.values(b.completedDays || {}).filter(Boolean).length;
+      const badge = b.kind === 'prereset' ? '<span class="backup-item-badge">초기화 직전</span>' : '';
+      return `<div class="backup-item">
+        <div class="backup-item-info">
+          <div class="backup-item-date">${dateStr}${badge}</div>
+          <div class="backup-item-meta">완료 ${doneCnt}일 기록됨</div>
+        </div>
+        <button class="btn-backup-restore" onclick="restoreFromBackup('${b.id}')">이 시점으로 복원</button>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('백업 목록 조회 오류:', e);
+    el.innerHTML = '<div class="backup-empty">백업 목록을 불러오지 못했어요.</div>';
+  }
+}
+
+window.restoreFromBackup = async function(backupId) {
+  const user = window._currentUser;
+  if (!user) return;
+  if (!confirm('이 백업 시점으로 복원하면 현재 기록이 이 백업 내용으로 덮어써집니다.\n(복원 전 상태도 자동으로 한 번 더 백업해둘게요)\n\n정말 복원하시겠어요?')) return;
+  try {
+    // 혹시 모르니, 복원하기 직전의 현재 상태도 안전하게 한 번 더 백업
+    await createBackupSnapshot('prerestore');
+    const ref = window._doc(window._db, 'users', user.uid, 'backups', backupId);
+    const snap = await window._getDoc(ref);
+    if (!snap.exists()) { alert('백업 데이터를 찾을 수 없어요.'); return; }
+    const b = snap.data();
+    userData.startDate = b.startDate || today();
+    userData.completedDays = b.completedDays || {};
+    userData.journals = b.journals || {};
+    userData.practiceSeconds = b.practiceSeconds || {};
+    await saveUserData();
+    alert('✅ 복원되었습니다!');
+    location.reload();
+  } catch (e) {
+    console.error('복원 오류:', e);
+    alert('복원 중 문제가 생겼어요. 다시 시도해주세요.');
+  }
+};
+
 // ── 인증 ─────────────────────────────────────────────────
 window.loginWithGoogle = async function() {
   const btn     = document.getElementById('btn-login');
@@ -145,8 +268,9 @@ window.confirmReset = async function() {
   const input = document.getElementById('reset-confirm-input');
   if (!input || input.value.trim() !== '초기화') return;
   closeResetModal();
+  await createBackupSnapshot('prereset'); // 초기화 직전 안전 백업 (핵심 안전장치)
   await doReset();
-  alert('✅ 초기화 완료! 오늘부터 Day 1입니다.');
+  alert('✅ 초기화 완료! 오늘부터 Day 1입니다.\n(혹시 실수였다면, 통계 탭의 "자동 백업 기록"에서 방금 전 상태로 복원할 수 있어요)');
 };
 
 // 실제 초기화 실행 (내부용)
@@ -1689,6 +1813,7 @@ function renderStats() {
   const cd = userData.completedDays  || {};
   const ps = userData.practiceSeconds || {};
   const start = new Date(userData.startDate || today());
+  renderBackupList();
 
   // 총 연습시간 / 하루 평균
   const totalSec = Object.values(ps).reduce((a, b) => a + b, 0);
@@ -1792,6 +1917,7 @@ window.initApp = function() {
   practiceUpd();
   maybeShowOnboard();
   maybeShowReminder();
+  maybeAutoBackup(); // 7일 지났으면 백그라운드에서 자동 백업 (결과를 기다리지 않음)
 };
 
 // ── 첫 사용자 안내(온보딩) ────────────────────────────────
