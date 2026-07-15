@@ -258,6 +258,17 @@
     .btn-warmup-stop{background:none;border:1.5px solid #D5C9BC;color:#8a7f70;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
     .btn-warmup-stop:hover{background:#f5f0ea}
     .mind-prep-line{background:#FFF8E1;border:1px solid #FFE08A;border-radius:10px;padding:12px 14px;font-size:13px;color:#7A6000;line-height:1.6;margin:0 0 14px;text-align:center}
+
+    /* 자동 백업 기록 */
+    .backup-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+    .backup-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#f7f9f7;border:1px solid #e5e9e6;border-radius:9px;font-size:12.5px}
+    .backup-item-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .backup-item-date{font-weight:700;color:#333}
+    .backup-item-meta{color:#888;font-size:11px}
+    .backup-item-badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:20px;background:#FFF3E0;color:#B8710B;margin-left:6px}
+    .btn-backup-restore{flex-shrink:0;padding:7px 12px;background:#fff;border:1.3px solid #2D6A4F;color:#2D6A4F;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn-backup-restore:hover{background:#F0F9F0}
+    .backup-empty{font-size:12.5px;color:#999;padding:10px 0}
     .example-label{font-size:11px;color:#40916C;font-weight:600;margin:10px 0 6px}
     .grid-example{display:flex;gap:5px;flex-wrap:wrap}
     .grid-cell{display:flex;align-items:center;justify-content:center;position:relative;border:1px solid #cfd8d2;border-radius:6px;background:#fbfcfb;color:#222;flex-shrink:0}
@@ -666,6 +677,12 @@
           <input type="file" id="restore-input" accept="application/json,.json" style="display:none">
           <span class="data-restore-hint">이전에 저장한 백업 파일(.json)을 선택하면 기록을 되살립니다.</span>
         </div>
+      </div>
+
+      <div class="card fadein">
+        <div class="sec-label" style="margin-top:0">☁️ 자동 백업 기록</div>
+        <p class="data-desc">7일마다 자동으로 클라우드에 스냅샷이 저장되고, <strong>초기화 직전에도 항상 자동으로 백업</strong>됩니다. 최근 10개까지 보관되며, 실수하셨을 때 여기서 바로 복원할 수 있어요.</p>
+        <div id="backup-list" class="backup-list">불러오는 중...</div>
       </div>
 
       <div class="card fadein danger-zone">
