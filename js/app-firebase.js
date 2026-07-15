@@ -701,7 +701,7 @@ function doBreath() {
   const c = document.getElementById('breath-circle');
   const p = document.getElementById('breath-phase');
   const s = document.getElementById('breath-sub');
-  if (breathCount >= 3) {
+  if (breathCount >= BREATH_CYCLES) {
     c.textContent = '완료 ✓'; p.textContent = '마음이 차분해졌나요?'; s.textContent = '연습을 시작해봐요';
     breathPhase = 'idle';
     setTimeout(() => { c.textContent = '다시'; c.classList.add('pulse'); }, 2500);
@@ -710,7 +710,7 @@ function doBreath() {
   breathPhase = 'inhale';
   c.classList.add('inhale'); c.textContent = '들숨';
   p.textContent = '코로 천천히 들이쉬세요... (4초)';
-  s.textContent = `${breathCount + 1} / 3 회`;
+  s.textContent = `${breathCount + 1} / ${BREATH_CYCLES} 회`;
   setTimeout(() => {
     breathPhase = 'exhale'; c.classList.remove('inhale'); c.textContent = '날숨';
     p.textContent = '입으로 천천히 내쉬세요... (4초)';
@@ -720,6 +720,84 @@ function doBreath() {
 
 function setQuote() {
   document.getElementById('quote-text').innerHTML = QUOTES[dayFromStart() % QUOTES.length];
+}
+
+// ── 준비 루틴 가이드 모드 ──────────────────────────────────
+// 각 단계를 실제로 시간 재며 순서대로 안내하고, 다 끝나면 자연스럽게
+// 호흡(마인드 컨트롤) 단계로 이어지도록 합니다.
+let warmupGuideIdx = -1;
+let warmupGuideInterval = null;
+let warmupGuideRemaining = 0;
+
+window.startWarmupGuide = function() {
+  document.getElementById('btn-warmup-guide').classList.add('hidden');
+  document.getElementById('warmup-steps').classList.add('hidden');
+  document.getElementById('warmup-guide-active').classList.remove('hidden');
+  document.getElementById('mind-prep-line').classList.add('hidden');
+  warmupGuideIdx = 0;
+  renderWarmupGuideStep();
+};
+
+function renderWarmupGuideProgress() {
+  const el = document.getElementById('warmup-guide-progress');
+  if (!el) return;
+  el.innerHTML = WARMUP_STEPS.map((_, i) => {
+    const cls = i < warmupGuideIdx ? 'done' : (i === warmupGuideIdx ? 'current' : '');
+    return `<span class="${cls}"></span>`;
+  }).join('');
+}
+
+function renderWarmupGuideStep() {
+  if (warmupGuideInterval) { clearInterval(warmupGuideInterval); warmupGuideInterval = null; }
+  if (warmupGuideIdx >= WARMUP_STEPS.length) { finishWarmupGuide(); return; }
+  const step = WARMUP_STEPS[warmupGuideIdx];
+  document.getElementById('warmup-guide-icon').textContent = step.icon;
+  document.getElementById('warmup-guide-title').textContent = step.title;
+  document.getElementById('warmup-guide-desc').textContent = step.desc;
+  warmupGuideRemaining = step.sec;
+  document.getElementById('warmup-guide-timer').textContent = warmupGuideRemaining;
+  renderWarmupGuideProgress();
+  warmupGuideInterval = setInterval(() => {
+    warmupGuideRemaining--;
+    const t = document.getElementById('warmup-guide-timer');
+    if (t) t.textContent = Math.max(0, warmupGuideRemaining);
+    if (warmupGuideRemaining <= 0) {
+      clearInterval(warmupGuideInterval); warmupGuideInterval = null;
+      warmupGuideIdx++;
+      renderWarmupGuideStep();
+    }
+  }, 1000);
+}
+
+window.skipWarmupStep = function() {
+  warmupGuideIdx++;
+  renderWarmupGuideStep();
+};
+
+window.stopWarmupGuide = function() {
+  if (warmupGuideInterval) { clearInterval(warmupGuideInterval); warmupGuideInterval = null; }
+  warmupGuideIdx = -1;
+  document.getElementById('warmup-guide-active').classList.add('hidden');
+  document.getElementById('warmup-steps').classList.remove('hidden');
+  document.getElementById('btn-warmup-guide').classList.remove('hidden');
+  document.getElementById('mind-prep-line').classList.add('hidden');
+};
+
+function finishWarmupGuide() {
+  document.getElementById('warmup-guide-active').classList.add('hidden');
+  document.getElementById('warmup-steps').classList.remove('hidden');
+  const btn = document.getElementById('btn-warmup-guide');
+  btn.classList.remove('hidden');
+  btn.textContent = '✓ 손 풀기 완료! 다시 하려면 눌러주세요';
+  const prep = document.getElementById('mind-prep-line');
+  prep.textContent = MIND_PREP_LINE;
+  prep.classList.remove('hidden');
+  const circle = document.getElementById('breath-circle');
+  if (circle) {
+    circle.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // 잠시 후 자동으로 호흡을 시작해서 손 풀기 → 마인드 컨트롤로 자연스럽게 이어지도록 함
+    setTimeout(() => { if (breathPhase === 'idle') window.startBreath(); }, 2500);
+  }
 }
 
 // ── 타이머 + 스톱워치 ────────────────────────────────────
