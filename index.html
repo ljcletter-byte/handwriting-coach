@@ -240,6 +240,24 @@
     .btn-pdf-download{width:100%;margin:10px 0 14px;padding:13px 16px;background:#fff;border:1.5px solid #2D6A4F;color:#2D6A4F;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;min-height:46px}
     .btn-pdf-download:hover{background:#F0F9F0}
     .btn-pdf-download:disabled{opacity:.6;cursor:default}
+
+    /* 준비 루틴 — 가이드 모드 */
+    .btn-warmup-guide{width:100%;margin:4px 0 14px;padding:13px 16px;background:#2D6A4F;border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;min-height:46px}
+    .btn-warmup-guide:hover{background:#245A41}
+    .warmup-guide-active{background:linear-gradient(135deg,#F0F9F0,#E8F5E9);border:1.5px solid #B7E4C7;border-radius:14px;padding:22px 18px;margin-bottom:16px;text-align:center}
+    .warmup-guide-progress{display:flex;justify-content:center;gap:6px;margin-bottom:14px}
+    .warmup-guide-progress span{width:9px;height:9px;border-radius:50%;background:#D5E8DC;transition:all .2s}
+    .warmup-guide-progress span.done{background:#74C69D}
+    .warmup-guide-progress span.current{background:#2D6A4F;transform:scale(1.3)}
+    .warmup-guide-icon{font-size:38px;margin-bottom:6px}
+    .warmup-guide-title{font-size:17px;font-weight:700;color:#1B4332;margin-bottom:8px}
+    .warmup-guide-desc{font-size:13.5px;color:#4A6B58;line-height:1.6;margin-bottom:16px;padding:0 6px}
+    .warmup-guide-timer{font-size:36px;font-weight:800;color:#2D6A4F;font-variant-numeric:tabular-nums;margin-bottom:16px}
+    .warmup-guide-actions{display:flex;gap:8px;justify-content:center}
+    .warmup-guide-actions .btn{flex:0 0 auto;padding:10px 18px;font-size:13px}
+    .btn-warmup-stop{background:none;border:1.5px solid #D5C9BC;color:#8a7f70;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+    .btn-warmup-stop:hover{background:#f5f0ea}
+    .mind-prep-line{background:#FFF8E1;border:1px solid #FFE08A;border-radius:10px;padding:12px 14px;font-size:13px;color:#7A6000;line-height:1.6;margin:0 0 14px;text-align:center}
     .example-label{font-size:11px;color:#40916C;font-weight:600;margin:10px 0 6px}
     .grid-example{display:flex;gap:5px;flex-wrap:wrap}
     .grid-cell{display:flex;align-items:center;justify-content:center;position:relative;border:1px solid #cfd8d2;border-radius:6px;background:#fbfcfb;color:#222;flex-shrink:0}
@@ -343,21 +361,34 @@
       <!-- 준비 루틴 (접이식, 미션 위) -->
       <div class="accordion" id="acc-warmup" style="margin-top:0">
         <button class="accordion-head" onclick="toggleAccordion('acc-warmup')">
-          <span>🤲 준비 루틴 — 시작 전 2분</span>
+          <span>🤲 준비 루틴 — 시작 전 5분</span>
           <span class="accordion-arrow">▾</span>
         </button>
         <div class="accordion-body">
           <div class="card warmup-card">
             <div class="warmup-header">
               <div class="warmup-header-icon">🤲</div>
-              <div><h3>손 풀기 & 마인드 컨트롤</h3><p>글씨 쓰기 전 준비 루틴 — 천천히 따라하세요</p></div>
+              <div><h3>손 풀기 & 마인드 컨트롤</h3><p>글씨 쓰기 전 준비 루틴 — 약 5분, 순서대로 따라해보세요</p></div>
+            </div>
+            <button class="btn-warmup-guide" id="btn-warmup-guide" onclick="startWarmupGuide()">▶ 5분 가이드로 시작하기</button>
+            <div class="warmup-guide-active hidden" id="warmup-guide-active">
+              <div class="warmup-guide-progress" id="warmup-guide-progress"></div>
+              <div class="warmup-guide-icon" id="warmup-guide-icon">🙆</div>
+              <div class="warmup-guide-title" id="warmup-guide-title"></div>
+              <div class="warmup-guide-desc" id="warmup-guide-desc"></div>
+              <div class="warmup-guide-timer" id="warmup-guide-timer">40</div>
+              <div class="warmup-guide-actions">
+                <button class="btn btn-default" onclick="skipWarmupStep()">다음 단계 →</button>
+                <button class="btn-warmup-stop" onclick="stopWarmupGuide()">그만하기</button>
+              </div>
             </div>
             <div class="warmup-steps" id="warmup-steps"></div>
+            <div class="mind-prep-line hidden" id="mind-prep-line"></div>
             <div class="breath-area">
               <div class="breath-label">마음 정리 — 복식 호흡</div>
               <div class="breath-circle pulse" id="breath-circle" onclick="startBreath()">시작</div>
               <div class="breath-phase" id="breath-phase">원을 클릭해 호흡을 시작하세요</div>
-              <div class="breath-sub" id="breath-sub">4초 들숨 → 4초 날숨 × 3회</div>
+              <div class="breath-sub" id="breath-sub">4초 들숨 → 4초 날숨 × 6회</div>
             </div>
             <div class="quote-area" id="quote-text"></div>
           </div>
