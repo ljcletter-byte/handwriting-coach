@@ -294,6 +294,123 @@
     .cal-day.done .cal-day-content{position:relative;z-index:1}
     .cal-day.done .cal-day-num{color:#4A2E80!important;font-weight:700}
     .cal-day.done .cal-day-min{color:#5E3FA0!important}
+
+    /* ══════════════ 다크모드 오버라이드 ══════════════
+       위쪽 스타일들은 흰 배경(#fff)·진한 글자색을 직접 써놔서
+       변수만으로는 자동 대응이 안 됨. 여기서 하나씩 다시 지정. */
+    [data-theme="dark"] { color-scheme: dark; }
+    [data-theme="dark"] .sync-badge.syncing{background:#3D2F0E;color:#F0BE63}
+    [data-theme="dark"] .bottom-nav{background:var(--card);border-top-color:var(--border)}
+    [data-theme="dark"] .bn-item{color:var(--text3)}
+    [data-theme="dark"] .bn-item.active{color:var(--green)}
+    [data-theme="dark"] .sheet-box{background:var(--card)}
+    [data-theme="dark"] .sheet-handle{background:var(--border2)}
+    [data-theme="dark"] .sheet-title{color:var(--text3)}
+    [data-theme="dark"] .sheet-item:hover{background:var(--bg2)}
+    [data-theme="dark"] .sheet-item-title{color:var(--text)}
+    [data-theme="dark"] .sheet-item-desc{color:var(--text3)}
+    [data-theme="dark"] .sheet-cancel{background:var(--bg2);color:var(--text2)}
+    [data-theme="dark"] .cal-day.today .cal-day-min,[data-theme="dark"] .cal-day.challenge .cal-day-min{color:var(--green)}
+    [data-theme="dark"] .modal-box{background:var(--card)}
+    [data-theme="dark"] .modal-close{color:var(--text3)}
+    [data-theme="dark"] .modal-close:hover{color:var(--text)}
+    [data-theme="dark"] .modal-section-body{background:var(--bg2);color:var(--text)}
+    [data-theme="dark"] .modal-section-body.empty{color:var(--text3)}
+    [data-theme="dark"] .upload-preview-hint{color:var(--text3)}
+    [data-theme="dark"] .upload-preview:not(.collapsed){background:var(--bg2)}
+    [data-theme="dark"] .journal-date-input{background:var(--card);border-color:var(--border);color:var(--text)}
+    [data-theme="dark"] .btn-today{background:var(--card);border-color:var(--border);color:var(--text2)}
+    [data-theme="dark"] .journal-date-note{background:#3D2F0E;border-color:#5C4A17;color:#E4C77E}
+    [data-theme="dark"] .reminder-banner{background:linear-gradient(135deg,#16281F,#1B3A2C);border-color:#2E5A44}
+    [data-theme="dark"] .reminder-banner-text{color:var(--green)}
+    [data-theme="dark"] .reminder-banner-close{color:#7FA88F}
+    [data-theme="dark"] .reminder-banner-close:hover{color:var(--green)}
+    [data-theme="dark"] .btn-view-history{background:var(--card);border-color:var(--border);color:var(--green)}
+    [data-theme="dark"] .btn-view-history:hover{background:var(--bg2)}
+    [data-theme="dark"] .gallery-status{color:var(--text3)}
+    [data-theme="dark"] .gallery-item{background:var(--bg2)}
+    [data-theme="dark"] .guide-intro{border-bottom-color:var(--border)}
+    [data-theme="dark"] .guide-intro h3{color:var(--green)}
+    [data-theme="dark"] .guide-intro p{color:var(--text2)}
+    [data-theme="dark"] .guide-section-title{color:var(--green)}
+    [data-theme="dark"] .guide-list{color:var(--text)}
+    [data-theme="dark"] .guide-list-warn li{color:#E5848A}
+    [data-theme="dark"] .guide-tip{background:#16281F;border-color:#2E5A44;color:var(--green)}
+    [data-theme="dark"] .stat-card{background:linear-gradient(150deg,var(--card),var(--bg2));border-color:var(--border)}
+    [data-theme="dark"] .stat-value{color:var(--green)}
+    [data-theme="dark"] .stat-label{color:var(--text3)}
+    [data-theme="dark"] .chart-title{color:var(--text)}
+    [data-theme="dark"] .chart-sub{color:var(--text3)}
+    [data-theme="dark"] .chart-total{color:var(--green)}
+    [data-theme="dark"] .bar-value{color:var(--text2)}
+    [data-theme="dark"] .bar-label{color:var(--text3)}
+    [data-theme="dark"] .badge-item{background:var(--bg2)}
+    [data-theme="dark"] .badge-item.earned{background:#16281F;border-color:#2E5A44}
+    [data-theme="dark"] .badge-label{color:var(--text2)}
+    [data-theme="dark"] .badge-item.earned .badge-label{color:var(--green)}
+    [data-theme="dark"] .week-badge{border-color:var(--border);color:var(--text3);background:var(--card)}
+    [data-theme="dark"] .week-badge.earned{border-color:#245A41;background:#245A41;color:#fff}
+    [data-theme="dark"] .compare-label{color:var(--text2)}
+    [data-theme="dark"] .compare-label strong{color:var(--green)}
+    [data-theme="dark"] .onboard-slide h3{color:var(--green)}
+    [data-theme="dark"] .onboard-slide p{color:var(--text2)}
+    [data-theme="dark"] .onboard-dot{background:var(--border2)}
+    [data-theme="dark"] .onboard-dot.active{background:var(--green)}
+    [data-theme="dark"] .data-desc{color:var(--text2)}
+    [data-theme="dark"] .data-restore{border-top-color:var(--border)}
+    [data-theme="dark"] .data-restore-hint{color:var(--text3)}
+    [data-theme="dark"] .danger-zone{border-color:#5C2A2A;background:#2A1717}
+    [data-theme="dark"] .reset-desc{color:var(--text2)}
+    [data-theme="dark"] .reset-step-label{color:var(--text2)}
+    [data-theme="dark"] .reset-input{background:var(--card);border-color:var(--border);color:var(--text)}
+    [data-theme="dark"] .week-focus{background:linear-gradient(135deg,#16281F,#1B3A2C);border-color:#2E5A44}
+    [data-theme="dark"] .week-focus-head{color:var(--green2)}
+    [data-theme="dark"] .week-focus-main{color:var(--green)}
+    [data-theme="dark"] .week-focus-q{color:var(--text2)}
+    [data-theme="dark"] .selfcheck-box{background:var(--bg2)}
+    [data-theme="dark"] .selfcheck-q{color:var(--text2)}
+    [data-theme="dark"] .selfcheck-q strong{color:var(--green)}
+    [data-theme="dark"] .selfcheck-opt{background:var(--card);border-color:var(--border)}
+    [data-theme="dark"] .selfcheck-opt span{color:var(--text3)}
+    [data-theme="dark"] .selfcheck-opt.selected{border-color:var(--green);background:#16281F}
+    [data-theme="dark"] .selfcheck-opt.selected span{color:var(--green)}
+    [data-theme="dark"] .wrist-break{background:linear-gradient(135deg,#3D2F0E,#332708);border-color:#5C4A17}
+    [data-theme="dark"] .wrist-break-close{color:#D4A82E}
+    [data-theme="dark"] .wrist-break-title{color:#E4C77E}
+    [data-theme="dark"] .wrist-break-desc{color:#C4A868}
+    [data-theme="dark"] .accordion{background:var(--card);border-color:var(--border)}
+    [data-theme="dark"] .accordion-head{color:var(--text)}
+    [data-theme="dark"] .accordion-arrow{color:var(--text3)}
+    [data-theme="dark"] .font-switch-label{color:var(--text3)}
+    [data-theme="dark"] .font-btn{background:var(--card);border-color:var(--border);color:var(--text2)}
+    [data-theme="dark"] .btn-pdf-download{background:var(--card);border-color:var(--green);color:var(--green)}
+    [data-theme="dark"] .btn-pdf-download:hover{background:#16281F}
+    [data-theme="dark"] .btn-warmup-guide{background:#245A41}
+    [data-theme="dark"] .btn-warmup-guide:hover{background:#2E6D4F}
+    [data-theme="dark"] .warmup-guide-active{background:linear-gradient(135deg,#16281F,#1B3A2C);border-color:#2E5A44}
+    [data-theme="dark"] .warmup-guide-progress span{background:#2E5A44}
+    [data-theme="dark"] .warmup-guide-progress span.done{background:var(--green3)}
+    [data-theme="dark"] .warmup-guide-progress span.current{background:var(--green)}
+    [data-theme="dark"] .warmup-guide-title{color:#B7E4C7}
+    [data-theme="dark"] .warmup-guide-desc{color:#9FB8A9}
+    [data-theme="dark"] .warmup-guide-timer{color:var(--green)}
+    [data-theme="dark"] .btn-warmup-stop{border-color:var(--border2);color:var(--text2)}
+    [data-theme="dark"] .btn-warmup-stop:hover{background:var(--bg2)}
+    [data-theme="dark"] .mind-prep-line{background:#3D2F0E;border-color:#5C4A17;color:#E4C77E}
+    [data-theme="dark"] .backup-item{background:var(--bg2);border-color:var(--border)}
+    [data-theme="dark"] .backup-item-date{color:var(--text)}
+    [data-theme="dark"] .backup-item-meta{color:var(--text3)}
+    [data-theme="dark"] .backup-item-badge{background:#3D2F0E;color:#E4A85C}
+    [data-theme="dark"] .btn-backup-restore{background:var(--card);border-color:var(--green);color:var(--green)}
+    [data-theme="dark"] .btn-backup-restore:hover{background:#16281F}
+    [data-theme="dark"] .backup-empty{color:var(--text3)}
+    [data-theme="dark"] .example-label{color:var(--green2)}
+    [data-theme="dark"] .grid-cell{border-color:var(--border);background:var(--bg2);color:var(--text)}
+    [data-theme="dark"] .grid-guide{background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px)}
+    [data-theme="dark"] .stamp-caption{background:var(--card);color:#C9A8F0}
+    [data-theme="dark"] .cal-day.done{background:#2A2033!important;border-color:#4A3A66!important}
+    [data-theme="dark"] .cal-day.done .cal-day-num{color:#C9A8F0!important}
+    [data-theme="dark"] .cal-day.done .cal-day-min{color:#B590E8!important}
   </style>
 </head>
 <body>
@@ -341,6 +458,7 @@
         </div>
       </div>
       <div class="app-header-badge">손글씨 교정 프로그램</div>
+      <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" aria-label="다크모드 전환" title="다크모드 전환">🌙</button>
       <button class="text-size-btn" id="text-size-btn" onclick="cycleTextSize()" aria-label="글자 크기 조절" title="글자 크기 조절">가<span id="text-size-indicator"></span></button>
     </div>
   </header>
