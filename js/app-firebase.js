@@ -33,6 +33,33 @@ window.cycleTextSize = function() {
   try { localStorage.setItem('textSizeLevel', next); } catch (e) { /* 저장 실패해도 이번 세션엔 적용됨 */ }
 };
 
+// ── 접근성/취향: 다크모드 ───────────────────────────────────
+// 사용자가 명시적으로 고른 적이 없으면 시스템 설정(prefers-color-scheme)을
+// 따르고(css에서 처리), 한번 고르면 그 선택을 기기에 저장해 항상 유지합니다.
+function applyTheme(mode) {
+  // mode: 'light' | 'dark' | null(=시스템 자동)
+  if (mode) document.documentElement.setAttribute('data-theme', mode);
+  else document.documentElement.removeAttribute('data-theme');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (!btn) return;
+  const isDark = mode === 'dark' || (!mode && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  btn.textContent = isDark ? '☀️' : '🌙';
+}
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('themeMode'); } catch (e) { /* 무시 */ }
+  const apply = () => applyTheme(saved);
+  if (document.body) apply();
+  else document.addEventListener('DOMContentLoaded', apply);
+})();
+window.toggleTheme = function() {
+  const currentlyDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    || (!document.documentElement.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const next = currentlyDark ? 'light' : 'dark';
+  applyTheme(next);
+  try { localStorage.setItem('themeMode', next); } catch (e) { /* 저장 실패해도 이번 세션엔 적용됨 */ }
+};
+
 // ── Firebase 데이터 관리 ──────────────────────────────────
 let userData = {
   startDate: today(),
