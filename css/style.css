@@ -14,12 +14,57 @@
   --border2: #C4BDB1;
   --text:    #2C2820;
   --text2:   #6B6357;
-  --text3:   #9B9085;
+  --text3:   #837A6D;
   --r:       12px;
   --r2:      8px;
   --shadow:  0 1px 8px rgba(44,40,32,.07);
   --shadow2: 0 4px 20px rgba(44,40,32,.10);
 }
+
+/* ── 다크모드 팔레트 ──────────────────────────────────────── */
+/* data-theme="dark"가 <html>에 붙으면 아래 값으로 전부 교체됨.
+   컴포넌트 CSS는 전부 변수(var(--xxx))를 쓰고 있어서, 여기 팔레트만
+   바꿔주면 카드/버튼/텍스트 색이 자동으로 다크 버전으로 바뀝니다. */
+[data-theme="dark"] {
+  --green:   #52B788;
+  --green2:  #74C69D;
+  --green3:  #95D5B2;
+  --green4:  #B7E4C7;
+  --green-l: #1B3A2C;
+  --green-ll:#16281F;
+  --bg:      #17181A;
+  --bg2:     #212327;
+  --card:    #1E2023;
+  --border:  #33363B;
+  --border2: #44484F;
+  --text:    #ECEAE6;
+  --text2:   #AFAAA1;
+  --text3:   #8A8579;
+  --shadow:  0 1px 8px rgba(0,0,0,.35);
+  --shadow2: 0 4px 20px rgba(0,0,0,.45);
+}
+/* 시스템이 다크모드인데 사용자가 아직 수동으로 선택한 적 없으면 자동 적용 */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]):not([data-theme="dark"]) {
+    --green:   #52B788;
+    --green2:  #74C69D;
+    --green3:  #95D5B2;
+    --green4:  #B7E4C7;
+    --green-l: #1B3A2C;
+    --green-ll:#16281F;
+    --bg:      #17181A;
+    --bg2:     #212327;
+    --card:    #1E2023;
+    --border:  #33363B;
+    --border2: #44484F;
+    --text:    #ECEAE6;
+    --text2:   #AFAAA1;
+    --text3:   #8A8579;
+    --shadow:  0 1px 8px rgba(0,0,0,.35);
+    --shadow2: 0 4px 20px rgba(0,0,0,.45);
+  }
+}
+
 html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
@@ -28,6 +73,7 @@ body {
   font-size: 14px;
   line-height: 1.65;
   min-height: 100vh;
+  transition: background .25s ease, color .25s ease;
 }
 
 /* ── 레이아웃 ─────────────────────────────────────────────── */
@@ -148,6 +194,7 @@ body {
   align-items: center;
   gap: 12px;
 }
+[data-theme="dark"] .warmup-header { background: #0F251C; }
 .warmup-header-icon {
   width: 36px; height: 36px;
   background: rgba(255,255,255,.12);
@@ -255,6 +302,8 @@ body {
 .part-1 { background: var(--green-l); color: var(--green2); }
 .part-2 { background: #E3F2FD; color: #1565C0; }
 .part-3 { background: #FFF8E1; color: #E65100; }
+[data-theme="dark"] .part-2 { background: #17324A; color: #7EB6EA; }
+[data-theme="dark"] .part-3 { background: #3D2F0E; color: #F0BE63; }
 .mission-part h3 { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
 .mission-part p { font-size: 11px; color: var(--text2); line-height: 1.55; }
 .example-box {
@@ -306,7 +355,7 @@ body {
 .ws-example {
   padding: 7px 12px;
   font-size: 15px;
-  background: #fff;
+  background: var(--card);
   border-bottom: 1px solid var(--border);
   letter-spacing: .06em;
   font-weight: 500;
@@ -360,6 +409,7 @@ body {
   color: #795548;
   line-height: 1.55;
 }
+[data-theme="dark"] .ws-print-tip { background: #3D2F0E; border-color: #5C4A17; color: #E4C77E; }
 
 /* ── 타이머 ───────────────────────────────────────────────── */
 .timer-card { text-align: center; padding: 22px 18px; }
@@ -372,7 +422,7 @@ body {
   transition: color .3s;
 }
 .timer-display.running { color: var(--green); }
-.timer-display.warning { color: #C62828; }
+.timer-display.warning { color: #E5484D; }
 .timer-prog-bg { background: var(--bg2); border-radius: 20px; height: 5px; overflow: hidden; max-width: 260px; margin: 5px auto 16px; }
 .timer-prog { background: var(--green4); height: 100%; border-radius: 20px; transition: width .5s linear; }
 .timer-btns { display: flex; justify-content: center; gap: 9px; }
@@ -393,6 +443,7 @@ body {
   border: 1px solid var(--border);
   font-family: inherit;
   transition: all .2s;
+  color: var(--text);
 }
 .btn-primary { background: var(--green); color: #fff; border-color: var(--green); }
 .btn-primary:hover { background: var(--green2); }
@@ -459,6 +510,7 @@ textarea:focus { border-color: var(--green2); }
   line-height: 1.75;
   display: none;
   margin-bottom: 12px;
+  color: var(--text);
 }
 .ai-result.show { display: block; }
 .save-row { display: flex; justify-content: flex-end; align-items: center; gap: 9px; }
@@ -503,6 +555,23 @@ textarea:focus { border-color: var(--green2); }
 .cal-summary { text-align: center; color: var(--text3); font-size: 11px; margin-top: 6px; }
 .cal-summary strong { color: var(--green); }
 
+/* ── 다크모드 토글 버튼 ───────────────────────────────────── */
+.theme-toggle-btn {
+  background: rgba(255,255,255,.15);
+  border: 1.5px solid rgba(255,255,255,.4);
+  color: #fff;
+  border-radius: 20px;
+  padding: 8px 12px;
+  font-size: 15px;
+  cursor: pointer;
+  min-height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-toggle-btn:hover { background: rgba(255,255,255,.28); }
+
 /* ── 반응형 ───────────────────────────────────────────────── */
 @media (max-width: 500px) {
   .dash-value { font-size: 22px; }
@@ -518,7 +587,7 @@ textarea:focus { border-color: var(--green2); }
   .warmup-card, .week-tabs, .timer-card, .journal-card,
   .cal-card, .day-pills, .btn, .save-row { display: none !important; }
   .tab-content { display: block !important; }
-  body { background: #fff; }
+  body { background: #fff; color: #000; }
   .card { box-shadow: none; border: 1px solid #ccc; }
   .ws-print-tip { display: none; }
 }
