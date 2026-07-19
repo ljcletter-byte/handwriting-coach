@@ -536,7 +536,11 @@
           <button class="btn btn-primary" id="btn-timer" onclick="timerToggle()">▶ 시작</button>
           <button class="btn btn-default" onclick="timerReset()">↺ 타이머 리셋</button>
         </div>
-        <div class="timer-done" id="timer-done">🎉 10분 완료! 오늘도 수고했어요</div>
+        <div class="timer-done" id="timer-done">
+          🎉 10분 완료! 오늘도 수고했어요<br>
+          <span style="display:block;margin-top:6px;font-weight:700">📓 잊지 말고 일지에서 "저장 & 스탬프 찍기"를 눌러주세요!</span>
+          <button type="button" onclick="switchTab('journal')" style="margin-top:10px;padding:8px 16px;background:#2D6A4F;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">📓 일지로 바로 가기</button>
+        </div>
         <div class="wrist-break" id="wrist-break">
           <button class="wrist-break-close" onclick="closeWristBreak()" aria-label="손목 휴식 알림 닫기">✕</button>
           <div class="wrist-break-icon">🤲</div>
