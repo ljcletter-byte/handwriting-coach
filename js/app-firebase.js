@@ -312,7 +312,7 @@ async function doReset() {
   clearInterval(swIv); swIv = null;
   tSec = 600; swSec = 0; swSecAutoSaved = 0;
   breakShown = false;
-  document.getElementById('btn-timer').textContent = '▶ 시작';
+  document.getElementById('btn-timer').textContent = '시작';
   document.getElementById('timer-done').classList.remove('show');
   tUpd(); swUpd(); practiceUpd();
   document.getElementById('weakness-input').value = '';
@@ -949,9 +949,15 @@ const swFmt = s => {
     : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 };
 
+const TIMER_RING_CIRC = 2 * Math.PI * 98; // 원 둘레 (반지름 98)
 function tUpd() {
   document.getElementById('timer-display').textContent = tFmt(tSec);
-  document.getElementById('timer-prog').style.width = (tSec/600*100) + '%';
+  const ring = document.getElementById('timer-ring-fill');
+  if (ring) {
+    const pct = tSec / 600; // 남은 비율
+    ring.style.strokeDasharray = TIMER_RING_CIRC;
+    ring.style.strokeDashoffset = TIMER_RING_CIRC * (1 - pct);
+  }
   document.getElementById('timer-display').className = 'timer-display'
     + (tRun ? ' running' : '') + (tSec <= 60 && tSec > 0 ? ' warning' : '');
 }
@@ -985,9 +991,9 @@ window.timerToggle = function() {
   if (tRun || swIv) {
     clearInterval(tIv); tIv = null; tRun = false;
     clearInterval(swIv); swIv = null;
-    btn.textContent = '▶ 계속';
+    btn.textContent = '계속';
   } else {
-    btn.textContent = '⏸ 일시정지';
+    btn.textContent = '일시정지';
     if (tSec > 0) {
       tRun = true;
       tIv = setInterval(() => {
@@ -1071,7 +1077,7 @@ window.timerReset = function() {
   tSec = 600;
   breakShown = false;
   window.closeWristBreak && window.closeWristBreak();
-  document.getElementById('btn-timer').textContent = '▶ 시작';
+  document.getElementById('btn-timer').textContent = '시작';
   document.getElementById('timer-done').classList.remove('show');
   tUpd();
   swUpd();
@@ -1186,7 +1192,7 @@ window.savePracticeCompletion = async function() {
   if (swIv) {
     clearInterval(swIv); swIv = null;
     clearInterval(tIv); tIv = null; tRun = false;
-    document.getElementById('btn-timer').textContent = '▶ 시작';
+    document.getElementById('btn-timer').textContent = '시작';
   }
   flushPracticeTimeToLocal();
   swSec = 0;
@@ -1239,7 +1245,7 @@ window.saveJournal = async function() {
   if (swIv) {
     clearInterval(swIv); swIv = null;
     clearInterval(tIv); tIv = null; tRun = false;
-    document.getElementById('btn-timer').textContent = '▶ 시작';
+    document.getElementById('btn-timer').textContent = '시작';
   }
   flushPracticeTimeToLocal();
   swSec = 0;
