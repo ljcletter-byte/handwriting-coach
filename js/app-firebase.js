@@ -91,16 +91,41 @@ window.loadUserData = async function(uid) {
   }
 };
 
+// 저장 성공 시 true, 실패 시 false를 반환합니다.
+// (이전에는 실패해도 조용히 넘어가서, 호출한 쪽이 "성공했다"고 착각하는 문제가 있었습니다)
 async function saveUserData() {
   const user = window._currentUser;
-  if (!user) return;
+  if (!user) return false;
   try {
     setSyncStatus('syncing');
     const ref = window._doc(window._db, 'users', user.uid);
     await window._setDoc(ref, userData);
     setSyncStatus('synced');
+    return true;
   } catch(e) {
     console.error('저장 오류:', e);
+    setSyncStatus('synced'); // 배지는 계속 정상 표시하되, 실제 실패는 아래에서 처리
+    return false;
+  }
+}
+
+// 1분마다 도는 자동저장 전용 — practiceSeconds 필드 하나만 부분 갱신합니다.
+// (전체 저장(setDoc)은 84일치 journals·completedDays 등을 매번 통째로 다시 보내는데,
+//  자동저장은 훨씬 자주 실행되므로 updateDoc으로 해당 필드만 보내 트래픽/쓰기 비용을 줄입니다)
+// 문서가 아직 없는 경우(updateDoc 실패)에는 전체 저장으로 자동 대체합니다.
+async function saveUserDataPartial(fields) {
+  const user = window._currentUser;
+  if (!user) return false;
+  try {
+    setSyncStatus('syncing');
+    const ref = window._doc(window._db, 'users', user.uid);
+    await window._updateDoc(ref, fields);
+    setSyncStatus('synced');
+    return true;
+  } catch (e) {
+    // 문서가 아직 없거나(신규 사용자) 기타 사유로 실패하면, 안전하게 전체 저장으로 재시도
+    console.warn('부분 저장 실패 — 전체 저장으로 재시도합니다:', e);
+    return await saveUserData();
   }
 }
 
@@ -367,17 +392,6 @@ function updateDash() {
 }
 
 let reminderDismissed = false;
-
-function daysSinceLastPractice() {
-  const cd = userData.completedDays || {};
-  const dates = Object.keys(cd).filter(k => cd[k]);
-  if (dates.length === 0) return null;
-  dates.sort();
-  const lastDate = dates[dates.length - 1];
-  const last = new Date(lastDate);
-  const now = new Date(today());
-  return Math.round((now - last) / 864e5);
-}
 
 // 어제부터 거꾸로 세어, 며칠간 연속으로 안 했는지 계산 (오늘은 세지 않음)
 function consecutiveMissedDays() {
@@ -1001,19 +1015,39 @@ window.timerToggle = function() {
 // 스톱워치가 돌아가는 동안 60초마다 조용히 클라우드에 저장합니다.
 // (사용자가 저장 버튼을 깜빡하고 탭을 닫아도, 지금까지 쌓인 시간은 최대 1분 오차로 이미 저장돼 있음)
 // 화면상의 스톱워치·타이머는 계속 그대로 진행되며, 이건 백그라운드에서 조용히 일어납니다.
+// 스톱워치의 "아직 저장 안 된 구간(swSec - swSecAutoSaved)"을 계산해서
+// userData.practiceSeconds에 로컬로 반영합니다. (클라우드 저장은 별도)
+// 화면에 보이는 swSec은 절대 건드리지 않고, swSecAutoSaved(저장 기준점)만 옮깁니다.
+// 반환값: 실제로 반영한 초 (0이면 반영할 게 없었음)
+function flushPracticeTimeToLocal() {
+  const delta = swSec - swSecAutoSaved;
+  if (delta <= 0) return 0;
+  if (!userData.practiceSeconds) userData.practiceSeconds = {};
+  const t = today();
+  userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + delta;
+  swSecAutoSaved = swSec;
+  return delta;
+}
+
 let _autoSaveInFlight = false;
 async function autoSavePracticeTime() {
-  if (_autoSaveInFlight) return; // 저장이 겹쳐 실행되지 않도록
+  if (_autoSaveInFlight) return;
   if (!window._currentUser) return;
-  const delta = swSec - swSecAutoSaved; // 아직 저장 안 된 만큼만 (화면 숫자 swSec은 절대 건드리지 않음)
-  if (delta <= 0) return;
+  if (swSec - swSecAutoSaved <= 0) return; // 반영할 새 시간이 없으면 넘어감
   _autoSaveInFlight = true;
+  const delta = flushPracticeTimeToLocal();
   try {
-    if (!userData.practiceSeconds) userData.practiceSeconds = {};
     const t = today();
-    userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + delta;
-    swSecAutoSaved = swSec;
-    await saveUserData();
+    // 문서 전체가 아니라 practiceSeconds의 오늘 날짜 필드 하나만 부분 갱신
+    // (dot-notation 키: Firestore updateDoc이 중첩 필드 하나만 정확히 갱신하도록 함)
+    const ok = await saveUserDataPartial({ [`practiceSeconds.${t}`]: userData.practiceSeconds[t] });
+    if (!ok) {
+      // 저장 실패 → 방금 반영한 만큼을 되돌려서, 다음 자동저장 때 다시 시도되게 함
+      // (이전 버전은 실패해도 "저장됨"으로 표시해버려서 시간이 조용히 사라지는 문제가 있었습니다)
+      userData.practiceSeconds[t] = Math.max(0, (userData.practiceSeconds[t] || 0) - delta);
+      swSecAutoSaved -= delta;
+      console.warn('연습 시간 자동 저장 실패 — 다음 저장 시도 때 재시도합니다.');
+    }
   } catch (e) {
     console.error('연습 시간 자동 저장 오류:', e);
   } finally {
@@ -1022,18 +1056,12 @@ async function autoSavePracticeTime() {
 }
 
 function commitPracticeTime() {
-  // 자동 저장으로 이미 반영된 부분(swSecAutoSaved)은 제외하고, 아직 안 쌓인 나머지만 저장
-  // (예: 3분 30초 연습 → 자동저장 3분 반영됨 → 여기서는 나머지 30초만 추가)
-  const remainder = swSec - swSecAutoSaved;
-  if (remainder > 0) {
-    if (!userData.practiceSeconds) userData.practiceSeconds = {};
-    const t = today();
-    userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + remainder;
-  }
+  flushPracticeTimeToLocal();
   swSec = 0;
   swSecAutoSaved = 0;
   swUpd(); practiceUpd();
 }
+
 
 window.timerReset = function() {
   clearInterval(tIv); tIv = null; tRun = false;
@@ -1160,16 +1188,10 @@ window.savePracticeCompletion = async function() {
     clearInterval(tIv); tIv = null; tRun = false;
     document.getElementById('btn-timer').textContent = '▶ 시작';
   }
-  {
-    const remainder = swSec - swSecAutoSaved;
-    if (remainder > 0) {
-      const realToday = today();
-      userData.practiceSeconds[realToday] = (userData.practiceSeconds[realToday] || 0) + remainder;
-    }
-    swSec = 0;
-    swSecAutoSaved = 0;
-    swUpd(); practiceUpd();
-  }
+  flushPracticeTimeToLocal();
+  swSec = 0;
+  swSecAutoSaved = 0;
+  swUpd(); practiceUpd();
 
   // 기존 일지 내용(사진/피드백)이 있으면 그대로 유지하고, 자가진단 값만 갱신
   const existing = userData.journals[t] || {};
@@ -1179,15 +1201,23 @@ window.savePracticeCompletion = async function() {
     savedAt: new Date().toISOString()
   };
   userData.completedDays[t] = true;
-  await saveUserData();
-  updateDash(); renderCalendar();
-  if (t === today()) { const rb = document.getElementById('reminder-banner'); if (rb) rb.classList.remove('show'); }
+  const ok = await saveUserData();
 
   btn.disabled = false;
   btn.textContent = origText;
-  const ok = document.getElementById('save-ok-practice');
-  ok.classList.add('show');
-  setTimeout(() => ok.classList.remove('show'), 3000);
+
+  if (!ok) {
+    // 저장이 실제로 실패했을 때는 "완료" 대신 명확한 오류를 보여줍니다
+    // (이전에는 실패해도 무조건 "저장 완료"가 떠서 사용자가 실패를 알 방법이 없었습니다)
+    alert('⚠️ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.\n(입력하신 내용은 화면에 그대로 남아있으니 다시 눌러주시면 됩니다)');
+    return;
+  }
+
+  updateDash(); renderCalendar();
+  if (t === today()) { const rb = document.getElementById('reminder-banner'); if (rb) rb.classList.remove('show'); }
+  const ok2 = document.getElementById('save-ok-practice');
+  ok2.classList.add('show');
+  setTimeout(() => ok2.classList.remove('show'), 3000);
   celebrateStamp();
 };
 
@@ -1202,6 +1232,19 @@ window.saveJournal = async function() {
   const t = journalDate;
   if (!userData.journals)     userData.journals = {};
   if (!userData.completedDays) userData.completedDays = {};
+  if (!userData.practiceSeconds) userData.practiceSeconds = {};
+
+  // savePracticeCompletion과 동일하게, 여기서도 돌아가는 타이머/스톱워치가 있으면 함께 정지하고 반영합니다.
+  // (이전에는 이 버튼만 눌렀을 때 타이머가 계속 돌아가는 비대칭 동작이 있었습니다)
+  if (swIv) {
+    clearInterval(swIv); swIv = null;
+    clearInterval(tIv); tIv = null; tRun = false;
+    document.getElementById('btn-timer').textContent = '▶ 시작';
+  }
+  flushPracticeTimeToLocal();
+  swSec = 0;
+  swSecAutoSaved = 0;
+  swUpd(); practiceUpd();
 
   let hasPhoto = (userData.journals[t] && userData.journals[t].hasPhoto) || false;
   if (uploadedThumb && window._currentUser) {
@@ -1231,15 +1274,21 @@ window.saveJournal = async function() {
   // 사진/피드백을 저장했다는 건 그날 이미 연습했다는 뜻이므로, 완료 표시도 함께 남김
   // (다만 "연습 완료로 저장" 버튼과 달리 축하 스탬프 연출은 생략 — 그건 연습 완료 시점에만)
   userData.completedDays[t] = true;
-  await saveUserData();
-  updateDash(); renderCalendar();
-  if (t === today()) { const rb = document.getElementById('reminder-banner'); if (rb) rb.classList.remove('show'); }
+  const ok = await saveUserData();
 
   btn.disabled = false;
   btn.textContent = origText;
-  const ok = document.getElementById('save-ok');
-  ok.classList.add('show');
-  setTimeout(() => ok.classList.remove('show'), 3000);
+
+  if (!ok) {
+    alert('⚠️ 저장에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.\n(사진이 이미 업로드됐다면 그건 남아있고, 텍스트만 다시 저장하면 됩니다)');
+    return;
+  }
+
+  updateDash(); renderCalendar();
+  if (t === today()) { const rb = document.getElementById('reminder-banner'); if (rb) rb.classList.remove('show'); }
+  const ok2 = document.getElementById('save-ok');
+  ok2.classList.add('show');
+  setTimeout(() => ok2.classList.remove('show'), 3000);
 };
 
 function celebrateStamp() {
