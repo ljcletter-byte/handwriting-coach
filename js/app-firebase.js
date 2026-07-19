@@ -285,7 +285,7 @@ async function doReset() {
   await saveUserData();
   clearInterval(tIv); tIv = null; tRun = false;
   clearInterval(swIv); swIv = null;
-  tSec = 600; swSec = 0;
+  tSec = 600; swSec = 0; swSecAutoSaved = 0;
   breakShown = false;
   document.getElementById('btn-timer').textContent = '▶ 시작';
   document.getElementById('timer-done').classList.remove('show');
@@ -919,6 +919,7 @@ function finishWarmupGuide() {
 let tSec = 600, tRun = false, tIv = null;
 let breakShown = false;
 let swSec = 0, swIv = null;
+let swSecAutoSaved = 0; // 지금까지 자동 저장으로 이미 클라우드에 반영된 초 (화면 표시용 swSec은 건드리지 않음)
 
 const tFmt = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
 const swFmt = s => {
@@ -984,17 +985,49 @@ window.timerToggle = function() {
         }
       }, 1000);
     }
-    swIv = setInterval(() => { swSec++; swUpd(); practiceUpd(); }, 1000);
+    swIv = setInterval(() => {
+      swSec++; swUpd(); practiceUpd();
+      // 60초마다 자동으로 클라우드에 저장 (저장 버튼을 깜빡해도 최대 1분치만 손실되도록 하는 안전망)
+      if (swSec > 0 && swSec % 60 === 0) autoSavePracticeTime();
+    }, 1000);
   }
   tUpd();
 };
 
+// 스톱워치가 돌아가는 동안 60초마다 조용히 클라우드에 저장합니다.
+// (사용자가 저장 버튼을 깜빡하고 탭을 닫아도, 지금까지 쌓인 시간은 최대 1분 오차로 이미 저장돼 있음)
+// 화면상의 스톱워치·타이머는 계속 그대로 진행되며, 이건 백그라운드에서 조용히 일어납니다.
+let _autoSaveInFlight = false;
+async function autoSavePracticeTime() {
+  if (_autoSaveInFlight) return; // 저장이 겹쳐 실행되지 않도록
+  if (!window._currentUser) return;
+  const delta = swSec - swSecAutoSaved; // 아직 저장 안 된 만큼만 (화면 숫자 swSec은 절대 건드리지 않음)
+  if (delta <= 0) return;
+  _autoSaveInFlight = true;
+  try {
+    if (!userData.practiceSeconds) userData.practiceSeconds = {};
+    const t = today();
+    userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + delta;
+    swSecAutoSaved = swSec;
+    await saveUserData();
+  } catch (e) {
+    console.error('연습 시간 자동 저장 오류:', e);
+  } finally {
+    _autoSaveInFlight = false;
+  }
+}
+
 function commitPracticeTime() {
-  if (swSec <= 0) return;
-  if (!userData.practiceSeconds) userData.practiceSeconds = {};
-  const t = today();
-  userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + swSec;
+  // 자동 저장으로 이미 반영된 부분(swSecAutoSaved)은 제외하고, 아직 안 쌓인 나머지만 저장
+  // (예: 3분 30초 연습 → 자동저장 3분 반영됨 → 여기서는 나머지 30초만 추가)
+  const remainder = swSec - swSecAutoSaved;
+  if (remainder > 0) {
+    if (!userData.practiceSeconds) userData.practiceSeconds = {};
+    const t = today();
+    userData.practiceSeconds[t] = (userData.practiceSeconds[t] || 0) + remainder;
+  }
   swSec = 0;
+  swSecAutoSaved = 0;
   swUpd(); practiceUpd();
 }
 
@@ -1119,10 +1152,15 @@ window.saveJournal = async function() {
     clearInterval(tIv); tIv = null; tRun = false;
     document.getElementById('btn-timer').textContent = '▶ 시작';
   }
-  if (swSec > 0) {
-    const realToday = today();
-    userData.practiceSeconds[realToday] = (userData.practiceSeconds[realToday] || 0) + swSec;
+  {
+    // 자동 저장으로 이미 반영된 부분은 제외하고, 아직 안 쌓인 나머지만 저장
+    const remainder = swSec - swSecAutoSaved;
+    if (remainder > 0) {
+      const realToday = today();
+      userData.practiceSeconds[realToday] = (userData.practiceSeconds[realToday] || 0) + remainder;
+    }
     swSec = 0;
+    swSecAutoSaved = 0;
     swUpd(); practiceUpd();
   }
   let hasPhoto = (userData.journals[t] && userData.journals[t].hasPhoto) || false;
