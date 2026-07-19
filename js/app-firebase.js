@@ -775,7 +775,10 @@ function renderWorksheet() {
       </div>
     </div><div class="ws-sections">`;
   g.sections.forEach((sec, i) => {
-    const content = i === 0 ? null : i === 1 ? md.p2 : md.p3;
+    // Part 1(선긋기)도 오늘의 미션 내용(md.p1, md.p1d)과 동일하게 맞춥니다.
+    // 이전에는 Part 1만 매일 똑같은 고정 문구였는데, 이제 미션 탭과 일치합니다.
+    const content = i === 0 ? md.p1 : i === 1 ? md.p2 : md.p3;
+    const todayHint = i === 0 ? md.p1d : null; // Part 1은 "어떻게" 안내를 스텝 위에 한 줄 더 보여줌
     html += `
       <div class="ws-section" style="--sec-color:${sec.color}">
         <div class="ws-sec-header">
@@ -784,6 +787,7 @@ function renderWorksheet() {
           <span class="ws-sec-title">${sec.title}</span>
         </div>
         ${content ? `<div class="ws-example">${content}</div>` : ''}
+        ${todayHint ? `<p class="ws-today-hint" style="font-size:12.5px;color:#40916C;background:#F0F9F0;border-radius:8px;padding:8px 12px;margin:8px 0;line-height:1.5">💡 ${todayHint}</p>` : ''}
         <ol class="ws-steps">${sec.steps.map(s => `<li>${s}</li>`).join('')}</ol>
       </div>`;
   });
@@ -1138,22 +1142,25 @@ document.getElementById('file-input').addEventListener('change', async e => {
   }
 });
 
-window.saveJournal = async function() {
-  const btn = document.getElementById('btn-save');
+// ① 연습 완료 저장 — 자가진단 + 연습시간(스톱워치)만으로 오늘 스탬프를 찍습니다.
+// 사진이나 AI 피드백이 전혀 없어도 이 버튼만 누르면 "오늘 완료"로 인정됩니다.
+window.savePracticeCompletion = async function() {
+  const btn = document.getElementById('btn-save-practice');
   const origText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = uploadedThumb ? '📤 사진 저장 중...' : '💾 저장 중...';
+  btn.textContent = '⏳ 저장 중...';
   const t = journalDate;
   if (!userData.journals)     userData.journals = {};
   if (!userData.completedDays) userData.completedDays = {};
   if (!userData.practiceSeconds) userData.practiceSeconds = {};
+
+  // 스톱워치가 돌아가고 있으면 정지 후 시간 반영 (자동저장된 부분은 제외하고 나머지만)
   if (swIv) {
     clearInterval(swIv); swIv = null;
     clearInterval(tIv); tIv = null; tRun = false;
     document.getElementById('btn-timer').textContent = '▶ 시작';
   }
   {
-    // 자동 저장으로 이미 반영된 부분은 제외하고, 아직 안 쌓인 나머지만 저장
     const remainder = swSec - swSecAutoSaved;
     if (remainder > 0) {
       const realToday = today();
@@ -1163,6 +1170,39 @@ window.saveJournal = async function() {
     swSecAutoSaved = 0;
     swUpd(); practiceUpd();
   }
+
+  // 기존 일지 내용(사진/피드백)이 있으면 그대로 유지하고, 자가진단 값만 갱신
+  const existing = userData.journals[t] || {};
+  userData.journals[t] = {
+    ...existing,
+    selfCheck: selfCheckValue,
+    savedAt: new Date().toISOString()
+  };
+  userData.completedDays[t] = true;
+  await saveUserData();
+  updateDash(); renderCalendar();
+  if (t === today()) { const rb = document.getElementById('reminder-banner'); if (rb) rb.classList.remove('show'); }
+
+  btn.disabled = false;
+  btn.textContent = origText;
+  const ok = document.getElementById('save-ok-practice');
+  ok.classList.add('show');
+  setTimeout(() => ok.classList.remove('show'), 3000);
+  celebrateStamp();
+};
+
+// ② 사진 & 피드백 저장 — 선택 사항. 완료(스탬프) 여부와 무관하게 언제든 추가·수정 가능합니다.
+// (아직 그날 연습 완료를 안 한 상태에서 이걸 먼저 눌러도, 자연스럽게 그날도 완료로 처리됩니다 —
+//  "AI 피드백까지 받았다"는 것 자체가 이미 그날 연습했다는 뜻이니까요.)
+window.saveJournal = async function() {
+  const btn = document.getElementById('btn-save');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = uploadedThumb ? '📤 사진 저장 중...' : '💾 저장 중...';
+  const t = journalDate;
+  if (!userData.journals)     userData.journals = {};
+  if (!userData.completedDays) userData.completedDays = {};
+
   let hasPhoto = (userData.journals[t] && userData.journals[t].hasPhoto) || false;
   if (uploadedThumb && window._currentUser) {
     try {
@@ -1180,23 +1220,26 @@ window.saveJournal = async function() {
       console.error('사진 저장 오류:', e);
     }
   }
+  const existing = userData.journals[t] || {};
   userData.journals[t] = {
+    ...existing,
     weakness: document.getElementById('weakness-input').value,
     feedback: document.getElementById('feedback-input').value,
-    selfCheck: selfCheckValue,
     hasPhoto: hasPhoto,
     savedAt:  new Date().toISOString()
   };
+  // 사진/피드백을 저장했다는 건 그날 이미 연습했다는 뜻이므로, 완료 표시도 함께 남김
+  // (다만 "연습 완료로 저장" 버튼과 달리 축하 스탬프 연출은 생략 — 그건 연습 완료 시점에만)
   userData.completedDays[t] = true;
   await saveUserData();
   updateDash(); renderCalendar();
   if (t === today()) { const rb = document.getElementById('reminder-banner'); if (rb) rb.classList.remove('show'); }
+
   btn.disabled = false;
   btn.textContent = origText;
   const ok = document.getElementById('save-ok');
   ok.classList.add('show');
   setTimeout(() => ok.classList.remove('show'), 3000);
-  celebrateStamp();
 };
 
 function celebrateStamp() {
