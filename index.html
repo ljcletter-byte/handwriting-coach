@@ -573,9 +573,27 @@
           <button class="btn-view-history" onclick="switchTab('calendar')">📖 지난 기록 보기</button>
         </div>
         <div class="journal-date-note" id="journal-date-note"></div>
+
+        <!-- ① 연습 완료 섹션 — 이것만 눌러도 스탬프가 찍힙니다 -->
+        <div style="background:#F0F9F0;border:1.5px solid #B7E4C7;border-radius:12px;padding:16px;margin-bottom:18px">
+          <div class="field-label" style="margin-top:0">✅ 오늘 연습 완료</div>
+          <div class="selfcheck-box" style="margin-bottom:12px">
+            <div class="selfcheck-q" id="selfcheck-q">이번 주 관찰 포인트를 얼마나 지켰나요?</div>
+            <div class="selfcheck-opts" id="selfcheck-opts">
+              <button type="button" class="selfcheck-opt" data-v="good"  onclick="selectSelfCheck('good')">😊<span>잘됨</span></button>
+              <button type="button" class="selfcheck-opt" data-v="soso"  onclick="selectSelfCheck('soso')">😐<span>보통</span></button>
+              <button type="button" class="selfcheck-opt" data-v="hard"  onclick="selectSelfCheck('hard')">😥<span>아쉬움</span></button>
+            </div>
+          </div>
+          <p style="font-size:12px;color:#5E8F73;margin:0 0 10px">연습 시간은 스톱워치로 자동 기록돼요. 아래 버튼을 누르면 오늘 스탬프가 찍힙니다. (사진·AI 피드백은 없어도 괜찮아요 — 나중에 따로 추가할 수 있어요)</p>
+          <button class="btn btn-primary" id="btn-save-practice" onclick="savePracticeCompletion()" style="width:100%">✅ 오늘 연습 완료로 저장 (스탬프 찍기)</button>
+          <span class="save-ok" id="save-ok-practice" style="display:block;margin-top:8px;text-align:center">✅ 저장 완료! (클라우드 동기화됨)</span>
+        </div>
+
+        <!-- ② AI 피드백 섹션 — 선택사항, 완료 여부와 무관하게 언제든 추가/수정 가능 -->
         <div class="journal-grid">
           <div class="journal-col-photo">
-            <div class="field-label">📷 연습 사진 업로드</div>
+            <div class="field-label">📷 연습 사진 업로드 <span style="font-weight:400;color:#999;font-size:12px">(선택)</span></div>
             <div class="upload-area">
               <input type="file" id="file-input" accept="image/*">
               <span class="upload-icon">📸</span>
@@ -586,15 +604,6 @@
             <div class="upload-preview-hint" id="upload-preview-hint" onclick="togglePreviewSize()">👆 클릭하면 원본 사진 전체를 볼 수 있어요</div>
           </div>
           <div class="journal-col-text">
-            <div class="field-label">🔍 오늘의 자가 진단</div>
-            <div class="selfcheck-box">
-              <div class="selfcheck-q" id="selfcheck-q">이번 주 관찰 포인트를 얼마나 지켰나요?</div>
-              <div class="selfcheck-opts" id="selfcheck-opts">
-                <button type="button" class="selfcheck-opt" data-v="good"  onclick="selectSelfCheck('good')">😊<span>잘됨</span></button>
-                <button type="button" class="selfcheck-opt" data-v="soso"  onclick="selectSelfCheck('soso')">😐<span>보통</span></button>
-                <button type="button" class="selfcheck-opt" data-v="hard"  onclick="selectSelfCheck('hard')">😥<span>아쉬움</span></button>
-              </div>
-            </div>
             <div class="field-label">✏️ 오늘 발견한 가장 불규칙한 부분</div>
             <textarea id="weakness-input" placeholder="예: 'ㄱ'의 꺾이는 각도가 너무 날카롭고 자음이 모음보다 커서 균형이 무너짐..." rows="3"></textarea>
             <div class="ai-header">
@@ -609,10 +618,11 @@
         </div>
         <div class="save-row">
           <span class="save-ok" id="save-ok">✅ 저장 완료! (클라우드 동기화됨)</span>
-          <button class="btn btn-primary" id="btn-save" onclick="saveJournal()">💾 저장 & 스탬프 찍기</button>
+          <button class="btn btn-default" id="btn-save" onclick="saveJournal()">📷 사진 & 피드백 저장</button>
         </div>
       </div>
     </div>
+
 
     <!-- 캘린더 탭 -->
     <div class="tab-content" id="tab-calendar">
