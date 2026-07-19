@@ -1,5 +1,4 @@
 // ── 날짜 헬퍼 (시간대 안전) ────────────────────────────────
-// toISOString()은 UTC 기준이라 한국에서 자정 직후에 하루 어긋날 수 있어 직접 포맷합니다.
 const ymd = d => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -8,9 +7,12 @@ const ymd = d => {
 };
 const today = () => ymd(new Date());
 
-// ── 접근성: 글자 크기 조절 ────────────────────────────────
-// 연세 있으신 분들도 편하게 쓰실 수 있도록, 화면 전체를 확대하는 옵션입니다.
-// 로그인 전 화면(온보딩 등)에도 바로 적용되도록 스크립트 로드 시점에 즉시 실행합니다.
+function ymdOffset(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return ymd(d);
+}
+
 const TEXT_SIZE_LEVELS = ['', 'text-lg', 'text-xl'];
 const TEXT_SIZE_LABELS = { '': '', 'text-lg': '크게', 'text-xl': '아주크게' };
 function applyTextSize(level) {
@@ -30,14 +32,10 @@ window.cycleTextSize = function() {
   const idx = (TEXT_SIZE_LEVELS.indexOf(current) + 1) % TEXT_SIZE_LEVELS.length;
   const next = TEXT_SIZE_LEVELS[idx];
   applyTextSize(next);
-  try { localStorage.setItem('textSizeLevel', next); } catch (e) { /* 저장 실패해도 이번 세션엔 적용됨 */ }
+  try { localStorage.setItem('textSizeLevel', next); } catch (e) {}
 };
 
-// ── 접근성/취향: 다크모드 ───────────────────────────────────
-// 사용자가 명시적으로 고른 적이 없으면 시스템 설정(prefers-color-scheme)을
-// 따르고(css에서 처리), 한번 고르면 그 선택을 기기에 저장해 항상 유지합니다.
 function applyTheme(mode) {
-  // mode: 'light' | 'dark' | null(=시스템 자동)
   if (mode) document.documentElement.setAttribute('data-theme', mode);
   else document.documentElement.removeAttribute('data-theme');
   const btn = document.getElementById('theme-toggle-btn');
@@ -47,7 +45,7 @@ function applyTheme(mode) {
 }
 (function initTheme() {
   let saved = null;
-  try { saved = localStorage.getItem('themeMode'); } catch (e) { /* 무시 */ }
+  try { saved = localStorage.getItem('themeMode'); } catch (e) {}
   const apply = () => applyTheme(saved);
   if (document.body) apply();
   else document.addEventListener('DOMContentLoaded', apply);
@@ -57,16 +55,15 @@ window.toggleTheme = function() {
     || (!document.documentElement.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const next = currentlyDark ? 'light' : 'dark';
   applyTheme(next);
-  try { localStorage.setItem('themeMode', next); } catch (e) { /* 저장 실패해도 이번 세션엔 적용됨 */ }
+  try { localStorage.setItem('themeMode', next); } catch (e) {}
 };
 
-// ── Firebase 데이터 관리 ──────────────────────────────────
 let userData = {
   startDate: today(),
   completedDays: {},
   journals: {},
-  practiceSeconds: {},  // { "2026-06-30": 720, "2026-07-01": 645, ... } — 날짜별 연습 초
-  onboarded: false      // 첫 사용자 안내를 봤는지
+  practiceSeconds: {},
+  onboarded: false
 };
 
 function setSyncStatus(status) {
@@ -107,13 +104,8 @@ async function saveUserData() {
   }
 }
 
-// ── 자동 백업 ─────────────────────────────────────────────
-// 1) 7일마다 자동으로 스냅샷 저장  2) 초기화 직전에는 반드시 자동 백업
-// (초기화 사고가 있었던 만큼, 사용자가 깜빡해도 항상 안전망이 있도록 함)
 const MAX_BACKUPS = 10;
 
-// 현재 userData의 텍스트 데이터(사진 제외 — 사진은 이미 별도 컬렉션이라 안전함)를
-// users/{uid}/backups/{backupId} 문서로 저장
 async function createBackupSnapshot(kind) {
   const user = window._currentUser;
   if (!user) return null;
@@ -123,7 +115,7 @@ async function createBackupSnapshot(kind) {
     const backupId = `${kind}-${stamp}`;
     const ref = window._doc(window._db, 'users', user.uid, 'backups', backupId);
     await window._setDoc(ref, {
-      kind, // 'auto'(7일 주기) 또는 'prereset'(초기화 직전)
+      kind,
       savedAt: ts.toISOString(),
       startDate: userData.startDate || null,
       completedDays: userData.completedDays || {},
@@ -137,7 +129,6 @@ async function createBackupSnapshot(kind) {
   }
 }
 
-// 오래된 백업 정리: 최신 MAX_BACKUPS개만 남기고 나머지는 삭제
 async function pruneOldBackups() {
   const user = window._currentUser;
   if (!user) return;
@@ -146,7 +137,7 @@ async function pruneOldBackups() {
     const snap = await window._getDocs(col);
     const docs = [];
     snap.forEach(d => docs.push({ id: d.id, savedAt: (d.data() || {}).savedAt || '' }));
-    docs.sort((a, b) => b.savedAt.localeCompare(a.savedAt)); // 최신순
+    docs.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
     const toDelete = docs.slice(MAX_BACKUPS);
     for (const d of toDelete) {
       try { await window._deleteDoc(window._doc(window._db, 'users', user.uid, 'backups', d.id)); }
@@ -157,7 +148,6 @@ async function pruneOldBackups() {
   }
 }
 
-// 앱을 열 때마다 확인: 마지막 자동 백업으로부터 7일 이상 지났으면 새로 백업
 async function maybeAutoBackup() {
   const last = userData.lastAutoBackup;
   const gap = last ? Math.round((new Date(today()) - new Date(last)) / 864e5) : 999;
@@ -166,11 +156,10 @@ async function maybeAutoBackup() {
   if (id) {
     userData.lastAutoBackup = today();
     await saveUserData();
-    pruneOldBackups(); // 결과를 기다릴 필요 없음(백그라운드로 진행)
+    pruneOldBackups();
   }
 }
 
-// 통계 탭의 "자동 백업 기록" 목록 렌더링
 async function renderBackupList() {
   const el = document.getElementById('backup-list');
   if (!el) return;
@@ -211,7 +200,6 @@ window.restoreFromBackup = async function(backupId) {
   if (!user) return;
   if (!confirm('이 백업 시점으로 복원하면 현재 기록이 이 백업 내용으로 덮어써집니다.\n(복원 전 상태도 자동으로 한 번 더 백업해둘게요)\n\n정말 복원하시겠어요?')) return;
   try {
-    // 혹시 모르니, 복원하기 직전의 현재 상태도 안전하게 한 번 더 백업
     await createBackupSnapshot('prerestore');
     const ref = window._doc(window._db, 'users', user.uid, 'backups', backupId);
     const snap = await window._getDoc(ref);
@@ -230,21 +218,18 @@ window.restoreFromBackup = async function(backupId) {
   }
 };
 
-// ── 인증 ─────────────────────────────────────────────────
 window.loginWithGoogle = async function() {
   const btn     = document.getElementById('btn-login');
   const loading = document.getElementById('login-loading');
   btn.style.display     = 'none';
   loading.style.display = 'block';
   try {
-    // 팝업 방식 먼저 시도
     const provider = new window._GoogleAuthProvider();
     await window._signInWithPopup(window._auth, provider);
   } catch(e) {
     if (e.code === 'auth/popup-blocked' ||
         e.code === 'auth/popup-closed-by-user' ||
         e.code === 'auth/cancelled-popup-request') {
-      // 팝업 차단 시 리디렉션 방식으로 전환
       try {
         const provider = new window._GoogleAuthProvider();
         await window._signInWithRedirect(window._auth, provider);
@@ -268,11 +253,6 @@ window.logout = async function() {
   }
 };
 
-// ── 진행 초기화 ───────────────────────────────────────────
-// 완료 일수, 일지, 시작일을 모두 초기화하여 Day 1부터 다시 시작합니다.
-// 실수 방지를 위해 두 단계 확인을 거칩니다.
-// ── 전체 초기화 (여러 안전장치) ───────────────────────────
-// 1) 통계 탭 깊숙이 위치  2) 백업 권유  3) '초기화' 직접 입력해야 실행
 window.startReset = function() {
   const cntEl = document.getElementById('reset-count');
   if (cntEl) cntEl.textContent = `${doneCount()}일치`;
@@ -295,16 +275,14 @@ window.confirmReset = async function() {
   const input = document.getElementById('reset-confirm-input');
   if (!input || input.value.trim() !== '초기화') return;
   closeResetModal();
-  await createBackupSnapshot('prereset'); // 초기화 직전 안전 백업 (핵심 안전장치)
+  await createBackupSnapshot('prereset');
   await doReset();
   alert('✅ 초기화 완료! 오늘부터 Day 1입니다.\n(혹시 실수였다면, 통계 탭의 "자동 백업 기록"에서 방금 전 상태로 복원할 수 있어요)');
 };
 
-// 실제 초기화 실행 (내부용)
 async function doReset() {
   userData = { startDate: today(), completedDays: {}, journals: {}, practiceSeconds: {}, onboarded: true };
   await saveUserData();
-  // 스톱워치/타이머도 초기화
   clearInterval(tIv); tIv = null; tRun = false;
   clearInterval(swIv); swIv = null;
   tSec = 600; swSec = 0;
@@ -312,7 +290,6 @@ async function doReset() {
   document.getElementById('btn-timer').textContent = '▶ 시작';
   document.getElementById('timer-done').classList.remove('show');
   tUpd(); swUpd(); practiceUpd();
-  // 화면 초기화
   document.getElementById('weakness-input').value = '';
   document.getElementById('feedback-input').value = '';
   selfCheckValue = null;
@@ -336,7 +313,6 @@ async function doReset() {
   if (typeof renderStats === 'function') renderStats();
 }
 
-// ── 날짜 헬퍼 (계속) ─────────────────────────────────────
 const dayFromStart = () => {
   const d = Math.floor((new Date(today()) - new Date(userData.startDate)) / 864e5) + 1;
   return Math.min(Math.max(d, 1), 84);
@@ -344,8 +320,6 @@ const dayFromStart = () => {
 const wkDay    = n => ({ w: Math.min(Math.ceil(n/7), 12), d: Math.min(((n-1)%7)+1, 7) });
 const doneCount = () => Object.keys(userData.completedDays || {}).length;
 
-// ── 탭 전환 ───────────────────────────────────────────────
-// 하단 탭바에 직접 있는 탭들 (나머지는 '더보기' 안에 있음)
 const BOTTOM_TABS = ['mission', 'journal', 'calendar', 'stats'];
 
 window.switchTab = function(name) {
@@ -353,18 +327,15 @@ window.switchTab = function(name) {
   const tab = document.getElementById('tab-' + name);
   if (tab) tab.classList.add('active');
 
-  // 하단 탭바 활성화 표시
   document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
   const bnItem = document.querySelector(`.bn-item[data-tab="${name}"]`);
   if (bnItem) {
     bnItem.classList.add('active');
   } else {
-    // 더보기 안에 있는 탭이면 '더보기' 버튼을 활성 표시
     const more = document.getElementById('bn-more');
     if (more) more.classList.add('active');
   }
 
-  // 맨 위로 스크롤 (탭 바꿀 때마다 상단부터 보이도록)
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (name === 'calendar') renderCalendar();
@@ -385,7 +356,6 @@ window.toggleAccordion = function(id) {
   if (el) el.classList.toggle('open');
 };
 
-// ── 대시보드 ──────────────────────────────────────────────
 function updateDash() {
   const n = dayFromStart(), {w} = wkDay(n), done = doneCount();
   document.getElementById('dash-week').textContent = w;
@@ -396,63 +366,83 @@ function updateDash() {
   document.getElementById('progress-fill').style.width = pct + '%';
 }
 
-// ── 리마인더 알림 ─────────────────────────────────────────
-// "앱을 며칠 안 열면 잊어버린다"는 문제를 완화하기 위해,
-// 앱을 열 때마다 마지막 완료일을 기준으로 며칠 지났는지 계산해서
-// 따뜻한 톤의 배너를 보여줍니다. (죄책감을 주지 않고 격려하는 문구로)
 let reminderDismissed = false;
 
-// 오늘 기준으로 마지막 완료일로부터 며칠이 지났는지 계산
-// 반환값: 0(오늘 이미 함), 1(어제까지만 함), 2 이상(며칠 지남), null(기록이 아예 없는 신규 사용자)
 function daysSinceLastPractice() {
   const cd = userData.completedDays || {};
   const dates = Object.keys(cd).filter(k => cd[k]);
-  if (dates.length === 0) return null; // 아직 한 번도 완료 기록이 없음 (온보딩 케이스)
-  dates.sort(); // 문자열 날짜 정렬 (YYYY-MM-DD 형식이라 문자열 정렬 = 날짜 정렬)
+  if (dates.length === 0) return null;
+  dates.sort();
   const lastDate = dates[dates.length - 1];
   const last = new Date(lastDate);
   const now = new Date(today());
   return Math.round((now - last) / 864e5);
 }
 
+// 어제부터 거꾸로 세어, 며칠간 연속으로 안 했는지 계산 (오늘은 세지 않음)
+function consecutiveMissedDays() {
+  const cd = userData.completedDays || {};
+  let missed = 0;
+  for (let i = 1; i <= 365; i++) {
+    const key = ymdOffset(-i);
+    if (cd[key]) return missed;
+    missed++;
+    if (userData.startDate && key < userData.startDate) return missed;
+  }
+  return missed;
+}
+
+// ── 리마인더 배너 (개선됨) ──────────────────────────────────
+// ① 오늘 이미 완료 → 축하  ② 오늘 안함+어제 완료 → 격려  ③ 어제도 안함 → 복귀 유도  ④ 신규 사용자 → 숨김
 function maybeShowReminder() {
   const banner = document.getElementById('reminder-banner');
   if (!banner || reminderDismissed) return;
 
-  const gap = daysSinceLastPractice();
-  // 오늘 이미 했거나(0), 신규 사용자(null)면 배너를 보여주지 않음
-  if (gap === null || gap <= 0) {
+  const iconEl = document.getElementById('reminder-banner-icon');
+  const textEl = document.getElementById('reminder-banner-text');
+
+  const cd = userData.completedDays || {};
+  const dates = Object.keys(cd).filter(k => cd[k]);
+
+  if (dates.length === 0) {
     banner.classList.remove('show');
     return;
   }
 
-  const iconEl = document.getElementById('reminder-banner-icon');
-  const textEl = document.getElementById('reminder-banner-text');
+  const t = today();
+  const yesterday = ymdOffset(-1);
+  const doneToday = !!cd[t];
+  const doneYesterday = !!cd[yesterday];
+  const streak = (typeof computeStreak === 'function') ? computeStreak() : 0;
+  const missed = consecutiveMissedDays();
+
   let icon, msg;
-  if (gap === 1) {
-    icon = '🌱';
-    msg = '어제는 쉬셨네요. 오늘 10분만 다시 이어가볼까요?';
-  } else if (gap <= 3) {
-    icon = '🌤️';
-    msg = `${gap}일 동안 연습을 못하셨어요. 지금 시작해도 전혀 늦지 않았어요!`;
-  } else if (gap <= 7) {
-    icon = '💌';
-    msg = `${gap}일 만이에요! 잠깐 5분이라도 다시 시작해보면 어떨까요?`;
-  } else {
-    icon = '🌿';
-    msg = '오랜만이에요. 부담 갖지 마시고, 오늘은 한 글자만 써봐도 충분해요.';
+
+  if (doneToday) {
+    if (streak >= 50) { icon = '🏆'; msg = `${streak}일 연속! 완주가 눈앞에 있어요. 정말 대단해요.`; }
+    else if (streak >= 30) { icon = '💪'; msg = `${streak}일 연속 실천! 이제 안 하는 게 오히려 어색할 정도예요.`; }
+    else if (streak >= 14) { icon = '⭐'; msg = `${streak}일 연속 완주 중! 이제 근육이 진짜로 기억하기 시작해요.`; }
+    else if (streak >= 7)  { icon = '🔥'; msg = `${streak}일 연속! 일주일을 넘겼으니 습관이 잡히는 중이에요.`; }
+    else if (streak >= 3)  { icon = '🌿'; msg = `${streak}일 연속 실천 중! 손이 리듬을 찾기 시작해요.`; }
+    else { icon = '✨'; msg = '오늘 미션 완료! 내일 또 만나요.'; }
   }
+  else if (doneYesterday) {
+    if (streak >= 30) { icon = '💪'; msg = `${streak}일 연속 실천 중! 오늘도 이 흐름을 이어가볼까요?`; }
+    else if (streak >= 14) { icon = '🔥'; msg = `${streak}일 연속 이어오셨네요! 오늘도 10분만 함께해요.`; }
+    else if (streak >= 7)  { icon = '⭐'; msg = `일주일 넘게 이어오셨네요! 오늘도 10분만 함께해요.`; }
+    else if (streak >= 3)  { icon = '🌿'; msg = `${streak}일 연속 실천 중! 오늘도 좋은 흐름 이어가세요.`; }
+    else { icon = '☀️'; msg = '어제도 완주하셨네요! 오늘도 10분만 함께해요.'; }
+  }
+  else if (missed === 1) { icon = '🌱'; msg = '어제는 쉬셨네요. 오늘 10분만 다시 이어가볼까요?'; }
+  else if (missed <= 3)  { icon = '🌤️'; msg = `${missed}일 동안 연습을 못하셨어요. 지금 시작해도 전혀 늦지 않았어요!`; }
+  else if (missed <= 7)  { icon = '💌'; msg = `${missed}일 만이에요! 잠깐 5분이라도 다시 시작해보면 어떨까요?`; }
+  else { icon = '🌿'; msg = '오랜만이에요. 부담 갖지 마시고, 오늘은 한 글자만 써봐도 충분해요.'; }
+
   fillReminderBanner(banner, iconEl, textEl, icon, msg);
 
-  // 알림 권한이 이미 허용된 상태라면, 앱을 여는 순간 OS 알림도 함께 띄워줌
-  // (앱을 아예 안 열면 발송할 방법이 없으므로, 열었을 때 눈에 더 잘 띄게 하는 보조 수단)
-  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+  if (!doneToday && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     try {
-      new Notification('12주 악필 교정 챌린저', {
-        body: msg,
-        icon: 'icon-192.png',
-        tag: 'daily-reminder' // 같은 태그로 중복 알림 방지
-      });
+      new Notification('12주 악필 교정 챌린저', { body: msg, icon: 'icon-192.png', tag: 'daily-reminder' });
     } catch (e) { console.error('알림 표시 오류:', e); }
   }
 }
@@ -469,7 +459,6 @@ window.dismissReminder = function() {
   if (banner) banner.classList.remove('show');
 };
 
-// 더보기 시트의 "리마인더 알림" 버튼 표시를 현재 권한 상태에 맞게 갱신
 function updateNotifToggleUI() {
   const title = document.getElementById('notif-toggle-title');
   const desc = document.getElementById('notif-toggle-desc');
@@ -501,10 +490,9 @@ window.toggleNotificationPref = async function() {
     return;
   }
   if (Notification.permission === 'granted') {
-    // 이미 켜져 있으면, 테스트 알림을 한 번 보여줘서 잘 작동하는지 확인시켜줌
     try {
       new Notification('12주 악필 교정 챌린저', { body: '리마인더 알림이 켜져 있어요! 👍', icon: 'icon-192.png' });
-    } catch (e) { /* 무시 */ }
+    } catch (e) {}
     return;
   }
   try {
@@ -518,7 +506,6 @@ window.toggleNotificationPref = async function() {
   }
 };
 
-// ── 주차 탭 ───────────────────────────────────────────────
 let selW = 1, selD = 1;
 
 function initWeekTabs() {
@@ -530,7 +517,6 @@ function initWeekTabs() {
     b.textContent = w + '주차';
     b.onclick = () => {
       selW = w; selD = 1; initWeekTabs(); renderMission(); renderWorksheet();
-      // 주차를 고르면 미리보기 아코디언을 닫고 맨 위 미션으로 스크롤
       const acc = document.getElementById('acc-weeks');
       if (acc) acc.classList.remove('open');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -539,8 +525,6 @@ function initWeekTabs() {
   }
 }
 
-// ── 미션 ─────────────────────────────────────────────────
-// 예시 글씨체: 'serif'(명조·교본용) 또는 'gaegu'(개구쟁이·손글씨)
 let practiceFont = 'serif';
 const FONT_FAMILY = {
   serif: "'Noto Serif KR', serif",
@@ -555,7 +539,6 @@ window.setPracticeFont = function(f) {
   renderGridExamples();
 };
 
-// 네모칸(원고지) 예시 렌더링 — 각 글자를 격자 칸에 넣고 보조선 표시
 function renderGridExamples() {
   const fam = FONT_FAMILY[practiceFont] || FONT_FAMILY.serif;
   document.querySelectorAll('.grid-example').forEach(box => {
@@ -583,10 +566,6 @@ function renderGridExamples() {
   });
 }
 
-// ── 따라쓰기 연습지 PDF ────────────────────────────────────
-// jsPDF는 한글 폰트를 기본 내장하지 않아 텍스트를 직접 그리면 깨지므로,
-// 브라우저가 이미 로드해둔 웹폰트(Noto Serif KR / Gaegu)로 캔버스에 먼저
-// 그린 뒤 그 캔버스를 이미지로 PDF에 넣는 방식을 씁니다. (글자 깨짐 없음)
 let _jspdfLoading = null;
 function ensureJsPDFLoaded() {
   if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
@@ -601,7 +580,6 @@ function ensureJsPDFLoaded() {
   return _jspdfLoading;
 }
 
-// 원고지 스타일 격자 칸 하나를 캔버스에 그림 (guide=null이면 빈 칸, 문자가 있으면 연한 회색 예시 글자 표시)
 function drawGridCell(ctx, x, y, size, guide, fontFamily) {
   const r = size * 0.12;
   ctx.strokeStyle = '#cfd8d2';
@@ -616,7 +594,6 @@ function drawGridCell(ctx, x, y, size, guide, fontFamily) {
   ctx.fillStyle = '#fbfcfb';
   ctx.fill();
   ctx.stroke();
-  // 십자 보조선 (원고지 느낌)
   ctx.strokeStyle = '#e3ebe6';
   ctx.lineWidth = Math.max(1, size * 0.01);
   ctx.beginPath();
@@ -632,8 +609,6 @@ function drawGridCell(ctx, x, y, size, guide, fontFamily) {
   }
 }
 
-// 글자 배열을 격자 한 줄에 그리고(guideRow=true면 예시 글자 포함, false면 빈 칸),
-// 공백은 칸을 띄우지 않고 좁은 간격만 줌
 function drawCharRow(ctx, chars, x, y, cellSize, gap, guideRow, fontFamily) {
   let cx = x;
   chars.forEach(ch => {
@@ -656,7 +631,6 @@ window.downloadTracingPDF = async function() {
     const fam = FONT_FAMILY[practiceFont] || FONT_FAMILY.serif;
     const fontLabel = practiceFont === 'gaegu' ? '개구쟁이' : '명조(교본)';
 
-    // A4 캔버스 준비 (약 200dpi 상당 해상도)
     const PX_PER_MM = 8;
     const PAGE_W = 210 * PX_PER_MM, PAGE_H = 297 * PX_PER_MM;
     const MARGIN = 15 * PX_PER_MM;
@@ -670,7 +644,6 @@ window.downloadTracingPDF = async function() {
 
     let y = MARGIN;
 
-    // 헤더
     ctx.fillStyle = '#2D6A4F';
     ctx.font = `700 ${Math.round(6.2*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
@@ -696,7 +669,6 @@ window.downloadTracingPDF = async function() {
     ctx.beginPath(); ctx.moveTo(MARGIN, y); ctx.lineTo(PAGE_W - MARGIN, y); ctx.stroke();
     y += 7*PX_PER_MM;
 
-    // 섹션 그리는 헬퍼: 라벨 + 설명 + 예시줄(회색 글자) + 빈 연습줄 여러 개
     function drawSection(label, text, desc, practiceRows) {
       ctx.fillStyle = '#2D6A4F';
       ctx.font = `700 ${Math.round(4.2*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
@@ -709,15 +681,12 @@ window.downloadTracingPDF = async function() {
 
       const chars = [...text];
       const gap = 1.6 * PX_PER_MM;
-      // 글자 수에 맞춰 칸 크기를 조절해서 한 줄에 모두 들어가도록 함
       let cellSize = 13 * PX_PER_MM;
       const neededW = chars.reduce((w, ch) => w + (ch === ' ' ? cellSize*0.35 : cellSize + gap), 0);
       if (neededW > CONTENT_W) cellSize = Math.max(7*PX_PER_MM, (CONTENT_W - chars.length*gap) / chars.length);
 
-      // 예시 줄 (회색 글자)
       drawCharRow(ctx, chars, MARGIN, y, cellSize, gap, true, fam);
       y += cellSize + 3*PX_PER_MM;
-      // 빈 연습 줄들
       for (let i = 0; i < practiceRows; i++) {
         drawCharRow(ctx, chars, MARGIN, y, cellSize, gap, false, fam);
         y += cellSize + 3*PX_PER_MM;
@@ -728,7 +697,6 @@ window.downloadTracingPDF = async function() {
     drawSection('✍️ Part 2 · 단어', md.p2, md.p2d, 4);
     drawSection('✍️ Part 3 · 문장', md.p3, md.p3d, 3);
 
-    // 푸터
     ctx.fillStyle = '#B7C3BC';
     ctx.font = `400 ${Math.round(3*PX_PER_MM)}px 'Noto Sans KR', sans-serif`;
     ctx.textAlign = 'center';
@@ -790,8 +758,10 @@ function renderMission() {
 }
 window.selDay = function(d) { selD = d; renderMission(); };
 
-// ── 워크시트 안내 ─────────────────────────────────────────
+// 이제 미션 탭 안의 아코디언에 렌더됩니다 (이전엔 별도 탭이었음)
 function renderWorksheet() {
+  const target = document.getElementById('worksheet-content');
+  if (!target) return;
   const mw = WEEKS[selW], md = mw.days[selD - 1];
   const dn = (selW - 1) * 7 + selD;
   const g  = WORKSHEET_GUIDE;
@@ -832,7 +802,7 @@ function renderWorksheet() {
       <span>💡</span>
       <span>이 화면을 보면서 A4 용지에 직접 연습하세요. Ctrl+P로 인쇄도 가능합니다.</span>
     </div>`;
-  document.getElementById('worksheet-content').innerHTML = html;
+  target.innerHTML = html;
 }
 window.checklistChange = function() {
   const checks = document.querySelectorAll('.ws-check-item input');
@@ -840,7 +810,6 @@ window.checklistChange = function() {
     document.querySelector('.ws-checklist').classList.add('all-done');
 };
 
-// ── 호흡 ─────────────────────────────────────────────────
 let breathPhase = 'idle', breathCount = 0;
 window.startBreath = function() {
   if (breathPhase !== 'idle') return;
@@ -873,9 +842,6 @@ function setQuote() {
   document.getElementById('quote-text').innerHTML = QUOTES[dayFromStart() % QUOTES.length];
 }
 
-// ── 준비 루틴 가이드 모드 ──────────────────────────────────
-// 각 단계를 실제로 시간 재며 순서대로 안내하고, 다 끝나면 자연스럽게
-// 호흡(마인드 컨트롤) 단계로 이어지도록 합니다.
 let warmupGuideIdx = -1;
 let warmupGuideInterval = null;
 let warmupGuideRemaining = 0;
@@ -946,20 +912,12 @@ function finishWarmupGuide() {
   const circle = document.getElementById('breath-circle');
   if (circle) {
     circle.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    // 잠시 후 자동으로 호흡을 시작해서 손 풀기 → 마인드 컨트롤로 자연스럽게 이어지도록 함
     setTimeout(() => { if (breathPhase === 'idle') window.startBreath(); }, 2500);
   }
 }
 
-// ── 타이머 + 스톱워치 ────────────────────────────────────
-// 타이머: 10분 카운트다운 (기존)
-// 스톱워치: 실제 연습 시간을 초 단위로 누적 측정 (신규)
-// 시작 버튼을 누르면 둘 다 함께 시작됩니다.
-// 타이머가 0에 도달해도 스톱워치는 계속 진행됩니다.
-// 일시정지·초기화 버튼도 두 기능을 함께 제어합니다.
-// 초기화 또는 저장 시, 스톱워치 시간이 오늘의 practiceSeconds에 자동 누적됩니다.
 let tSec = 600, tRun = false, tIv = null;
-let breakShown = false; // 이번 세션에서 5분 휴식 알림을 이미 띄웠는지
+let breakShown = false;
 let swSec = 0, swIv = null;
 
 const tFmt = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
@@ -987,7 +945,6 @@ function practiceUpd() {
   const ps = userData.practiceSeconds || {};
   const todaySec = (ps[t] || 0) + swSec;
   const totalSec = Object.values(ps).reduce((a, b) => a + b, 0) + swSec;
-  // 이번 주 = 최근 7일
   const now = new Date();
   let weekSec = swSec;
   for (let i = 0; i < 7; i++) {
@@ -1007,19 +964,15 @@ function practiceUpd() {
 window.timerToggle = function() {
   const btn = document.getElementById('btn-timer');
   if (tRun || swIv) {
-    // 일시정지
     clearInterval(tIv); tIv = null; tRun = false;
     clearInterval(swIv); swIv = null;
     btn.textContent = '▶ 계속';
   } else {
-    // 시작 (또는 계속)
     btn.textContent = '⏸ 일시정지';
-    // 타이머 (0이면 재시작 안 함, 스톱워치만 진행)
     if (tSec > 0) {
       tRun = true;
       tIv = setInterval(() => {
         tSec--; tUpd();
-        // 5분(300초) 지점 도달 시 손목 휴식 알림 (한 번만)
         if (tSec === 300 && !breakShown) {
           breakShown = true;
           showWristBreak();
@@ -1028,17 +981,14 @@ window.timerToggle = function() {
           clearInterval(tIv); tIv = null; tRun = false;
           document.getElementById('timer-done').classList.add('show');
           beep();
-          // 스톱워치는 계속 돌아감
         }
       }, 1000);
     }
-    // 스톱워치 (항상 진행)
     swIv = setInterval(() => { swSec++; swUpd(); practiceUpd(); }, 1000);
   }
   tUpd();
 };
 
-// 오늘 연습 시간 누적 저장
 function commitPracticeTime() {
   if (swSec <= 0) return;
   if (!userData.practiceSeconds) userData.practiceSeconds = {};
@@ -1051,7 +1001,6 @@ function commitPracticeTime() {
 window.timerReset = function() {
   clearInterval(tIv); tIv = null; tRun = false;
   clearInterval(swIv); swIv = null;
-  // 스톱워치 누적 시간을 오늘 기록에 저장 (연습한 시간은 사라지지 않고 저장됨)
   commitPracticeTime();
   saveUserData();
   tSec = 600;
@@ -1078,7 +1027,6 @@ function beep() {
   } catch(e) {}
 }
 
-// 휴식 알림용 부드러운 2음 차임 (완료음 beep보다 낮고 포근한 느낌)
 function softChime() {
   try {
     const a = new (window.AudioContext || window.webkitAudioContext)();
@@ -1093,13 +1041,11 @@ function softChime() {
   } catch(e) {}
 }
 
-// 5분 손목 휴식 알림 배너
 function showWristBreak() {
   softChime();
   const el = document.getElementById('wrist-break');
   if (!el) return;
   el.classList.add('show');
-  // 12초 후 자동으로 사라짐 (사용자가 직접 닫을 수도 있음)
   clearTimeout(window._wristBreakTimer);
   window._wristBreakTimer = setTimeout(() => el.classList.remove('show'), 12000);
 }
@@ -1109,12 +1055,9 @@ window.closeWristBreak = function() {
   clearTimeout(window._wristBreakTimer);
 };
 
-// ── 저널 ─────────────────────────────────────────────────
-let uploadedImg = null;   // AI 분석용 (1200px, 고화질)
-let uploadedThumb = null; // Firebase Storage 저장용 (700px, 압축 — 용량 최소화)
+let uploadedImg = null;
+let uploadedThumb = null;
 
-// 휴대폰 카메라 사진은 용량이 매우 커서(수 MB) Anthropic API가 거부할 수 있으므로,
-// 업로드 시 가로/세로 1200px 이하, JPEG 품질 0.8 정도로 자동 축소합니다.
 function resizeImage(file, maxSize = 1200, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1151,8 +1094,8 @@ document.getElementById('file-input').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   document.getElementById('upload-filename').textContent = f.name;
   try {
-    uploadedImg   = await resizeImage(f, 1200, 0.8); // AI 분석용
-    uploadedThumb = await resizeImage(f, 700, 0.6);  // 저장용 (용량 절약)
+    uploadedImg   = await resizeImage(f, 1200, 0.8);
+    uploadedThumb = await resizeImage(f, 700, 0.6);
     const img = document.getElementById('upload-preview');
     img.src = uploadedImg; img.style.display = 'block'; img.classList.add('collapsed');
     document.getElementById('upload-preview-hint').classList.add('show');
@@ -1167,27 +1110,21 @@ window.saveJournal = async function() {
   const origText = btn.textContent;
   btn.disabled = true;
   btn.textContent = uploadedThumb ? '📤 사진 저장 중...' : '💾 저장 중...';
-  const t = journalDate; // 선택한 날짜 (기본값: 오늘)
+  const t = journalDate;
   if (!userData.journals)     userData.journals = {};
   if (!userData.completedDays) userData.completedDays = {};
   if (!userData.practiceSeconds) userData.practiceSeconds = {};
-  // 스톱워치가 돌아가고 있으면 정지 후 시간 누적
   if (swIv) {
     clearInterval(swIv); swIv = null;
     clearInterval(tIv); tIv = null; tRun = false;
     document.getElementById('btn-timer').textContent = '▶ 시작';
   }
   if (swSec > 0) {
-    // 스톱워치로 잰 시간은 '실제로 연습한 오늘'에 누적합니다
-    // (지난 날짜 일지를 쓰더라도, 방금 연습한 시간은 오늘 기록이므로)
     const realToday = today();
     userData.practiceSeconds[realToday] = (userData.practiceSeconds[realToday] || 0) + swSec;
     swSec = 0;
     swUpd(); practiceUpd();
   }
-  // 사진이 있으면 별도 문서(users/{uid}/journalPhotos/{날짜})에 저장
-  // 메인 데이터 문서에 직접 넣지 않는 이유: 84일치 사진이 쌓이면 Firestore의
-  // "문서당 1MB 제한"을 넘을 수 있어서, 날짜별로 분리된 작은 문서에 따로 저장합니다.
   let hasPhoto = (userData.journals[t] && userData.journals[t].hasPhoto) || false;
   if (uploadedThumb && window._currentUser) {
     try {
@@ -1196,7 +1133,6 @@ window.saveJournal = async function() {
       await window._setDoc(photoRef, { photo: savedPhoto, savedAt: new Date().toISOString() });
       hasPhoto = true;
       uploadedThumb = null;
-      // 갤러리 캐시에도 반영 (다시 조회하지 않아도 최신 사진이 바로 보이도록)
       if (galleryCache) {
         const idx = galleryCache.findIndex(it => it.ds === t);
         if (idx >= 0) galleryCache[idx].photo = savedPhoto;
@@ -1204,7 +1140,6 @@ window.saveJournal = async function() {
       }
     } catch (e) {
       console.error('사진 저장 오류:', e);
-      // 사진 저장에 실패해도 일지 텍스트 저장은 계속 진행
     }
   }
   userData.journals[t] = {
@@ -1226,12 +1161,10 @@ window.saveJournal = async function() {
   celebrateStamp();
 };
 
-// 저장 완료 축하 도장 연출 (쾅! 찍히고 잠시 후 사라짐)
 function celebrateStamp() {
   const el = document.getElementById('stamp-celebrate');
   if (!el) return;
   const flower = document.getElementById('stamp-flower');
-  // 연속 진행률(스트릭)에 따라 응원 문구 변경
   const streak = (typeof computeStreak === 'function') ? computeStreak() : 0;
   const cap = document.getElementById('stamp-caption');
   if (cap) {
@@ -1239,7 +1172,6 @@ function celebrateStamp() {
       ? `${streak}일 연속 달성! 대단해요 🔥`
       : '오늘도 완료! 수고했어요 🎉';
   }
-  // 애니메이션 재시작을 위해 클래스 리셋
   el.classList.remove('hidden');
   if (flower) { flower.style.animation = 'none'; void flower.offsetWidth; flower.style.animation = ''; }
   if (typeof beep === 'function') beep();
@@ -1247,8 +1179,6 @@ function celebrateStamp() {
   window._stampTimer = setTimeout(() => el.classList.add('hidden'), 2200);
 }
 
-// ── 일지 작성 날짜 ────────────────────────────────────────
-// 기본은 오늘이지만, 지난 날짜를 골라 그날의 일지를 쓰거나 다시 피드백받을 수 있습니다.
 let journalDate = today();
 
 window.setJournalToday = function() {
@@ -1261,7 +1191,6 @@ window.setJournalToday = function() {
 window.onJournalDateChange = function() {
   const input = document.getElementById('journal-date');
   if (!input || !input.value) return;
-  // 미래 날짜는 선택 불가
   if (input.value > today()) {
     alert('아직 오지 않은 날짜는 선택할 수 없어요.');
     input.value = journalDate;
@@ -1271,7 +1200,6 @@ window.onJournalDateChange = function() {
   loadJournal();
 };
 
-// 선택한 날짜가 몇 일차인지 계산 (미션 표시용)
 function dayNumOf(ds) {
   const start = new Date(userData.startDate || ds);
   const dt = new Date(ds);
@@ -1283,15 +1211,12 @@ async function loadJournal() {
   const j = (userData.journals || {})[t] || {};
   document.getElementById('weakness-input').value = j.weakness || '';
   document.getElementById('feedback-input').value = j.feedback || '';
-  // 자가 진단 복원
   selfCheckValue = j.selfCheck || null;
   renderSelfCheck();
 
-  // 날짜 입력창 동기화
   const input = document.getElementById('journal-date');
   if (input) { input.value = t; input.max = today(); }
 
-  // 오늘이 아닌 날짜면 안내 표시
   const note = document.getElementById('journal-date-note');
   const btnToday = document.getElementById('btn-journal-today');
   if (note) {
@@ -1307,7 +1232,6 @@ async function loadJournal() {
     }
   }
 
-  // 이전 미리보기/업로드 상태 초기화
   uploadedImg = null;
   uploadedThumb = null;
   const preview = document.getElementById('upload-preview');
@@ -1319,7 +1243,6 @@ async function loadJournal() {
   const ai = document.getElementById('ai-result');
   if (ai) { ai.innerHTML = ''; ai.classList.remove('show'); }
 
-  // 그날 저장된 사진이 있으면 불러와서 미리보기 + AI 재요청 가능하게
   if (j.hasPhoto && window._currentUser) {
     try {
       const cached = galleryCache && galleryCache.find(it => it.ds === t);
@@ -1329,9 +1252,9 @@ async function loadJournal() {
         const snap = await window._getDoc(ref);
         if (snap.exists()) photo = snap.data().photo;
       }
-      if (photo && journalDate === t) { // 그 사이 날짜가 바뀌지 않았을 때만
-        uploadedImg = photo;   // AI 재요청용
-        uploadedThumb = null;  // 이미 저장돼 있으니 재저장 불필요
+      if (photo && journalDate === t) {
+        uploadedImg = photo;
+        uploadedThumb = null;
         if (preview) { preview.src = photo; preview.style.display = 'block'; preview.classList.add('collapsed'); }
         if (hint) hint.classList.add('show');
         if (fname) fname.textContent = '저장된 사진을 불러왔어요';
@@ -1342,36 +1265,27 @@ async function loadJournal() {
   }
 }
 
-// ── 자가 진단 ─────────────────────────────────────────────
 let selfCheckValue = null;
 function selfCheckLabel(v) {
   return { good: '😊 잘됨', soso: '😐 보통', hard: '😥 아쉬움' }[v] || '-';
 }
 function renderSelfCheck() {
-  // 선택한 일지 날짜가 속한 주의 관찰 포인트를 질문에 반영
   const dn = (typeof journalDate !== 'undefined') ? dayNumOf(journalDate) : 1;
   const { w } = wkDay(dn);
   const mw = WEEKS[w] || WEEKS[selW];
   const q = document.getElementById('selfcheck-q');
   if (q && mw) q.innerHTML = `관찰 포인트 <strong>「${mw.focus}」</strong>를 얼마나 지켰나요?`;
-  // 선택 상태 표시
   document.querySelectorAll('.selfcheck-opt').forEach(b => {
     b.classList.toggle('selected', b.dataset.v === selfCheckValue);
   });
 }
 window.selectSelfCheck = function(v) {
-  selfCheckValue = (selfCheckValue === v) ? null : v; // 다시 누르면 해제
+  selfCheckValue = (selfCheckValue === v) ? null : v;
   renderSelfCheck();
 };
 
-// ── AI 피드백 ─────────────────────────────────────────────
-// Anthropic API를 브라우저에서 직접 호출할 수 없으므로
-// Cloudflare Worker(중계 서버)를 통해 호출합니다.
 const AI_WORKER_URL = 'https://handwriting-ai-coach.ljcletter.workers.dev';
 
-// 실제 API 호출 (한 번의 시도) — 성공 시 텍스트 반환, 실패 시 예외
-// 예외 객체에 .status와 .retryable을 함께 실어서, 호출한 쪽에서
-// "재시도할 가치가 있는 오류인지"를 판단할 수 있게 합니다.
 async function requestAIFeedback(uc) {
   let res;
   try {
@@ -1381,20 +1295,15 @@ async function requestAIFeedback(uc) {
       body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: uc }] })
     });
   } catch (networkErr) {
-    // fetch 자체가 실패 (오프라인, DNS, CORS 등) — 재시도 가치 있음
     const e = new Error('네트워크 연결에 실패했습니다 (' + networkErr.message + ')');
     e.retryable = true;
     throw e;
   }
 
-  // 응답 본문을 먼저 텍스트로 받고, JSON 파싱은 그 다음에 안전하게 시도
-  // (Worker나 Cloudflare가 에러 시 HTML/평문을 줄 수도 있어서 res.json()이 바로 깨질 수 있음)
   const rawText = await res.text();
   let data = null;
-  try { data = rawText ? JSON.parse(rawText) : null; } catch (_) { /* JSON이 아님 */ }
+  try { data = rawText ? JSON.parse(rawText) : null; } catch (_) {}
 
-  // 재시도해볼 만한 상태 코드: 429(속도제한), 403(신규계정 검토 등 일시적일 수 있음),
-  // 500/502/503/504(서버 오류), 529(Anthropic 과부하)
   const RETRYABLE_STATUSES = new Set([403, 408, 409, 425, 429, 500, 502, 503, 504, 529]);
 
   if (!res.ok) {
@@ -1408,7 +1317,7 @@ async function requestAIFeedback(uc) {
   }
   if (data && data.error) {
     const e = new Error(data.error.message || JSON.stringify(data.error));
-    e.retryable = true; // 200으로 왔지만 error 필드가 있는 경우도 일단 재시도 대상으로
+    e.retryable = true;
     throw e;
   }
   if (!data || !data.content) {
@@ -1423,7 +1332,6 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 window.getAIFeedback = async function() {
   const weak = document.getElementById('weakness-input').value.trim();
-  // 선택한 일지 날짜의 미션을 기준으로 피드백 (지난 날짜도 가능)
   const dn = dayNumOf(journalDate);
   const { w: jw, d: jd } = wkDay(dn);
   const mw = WEEKS[jw], md = mw.days[jd - 1];
@@ -1435,7 +1343,6 @@ window.getAIFeedback = async function() {
   resultEl.classList.remove('show');
   document.getElementById('btn-ai').disabled = true;
 
-  // 프롬프트 구성
   const uc = [];
   if (uploadedImg) {
     const b = uploadedImg.split(',')[1];
@@ -1450,8 +1357,6 @@ window.getAIFeedback = async function() {
   pr += `\n\n다음 형식으로 300자 내외:\n✅ **잘한 점**: 1~2가지\n🔍 **개선 포인트**: 가장 중요한 1가지\n💡 **다음 연습 팁**: 실천 가능한 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로.`;
   uc.push({ type: 'text', text: pr });
 
-  // 자동 재시도: 최대 5회, 재시도 가능한 오류일 때만 계속 시도
-  // (재시도해도 소용없는 오류라면 바로 멈춰서 사용자를 불필요하게 기다리게 하지 않음)
   const MAX_TRIES = 5;
   let lastErr = null;
   for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
@@ -1465,23 +1370,21 @@ window.getAIFeedback = async function() {
       document.getElementById('feedback-input').value = txt;
       loadingEl.classList.remove('show');
       document.getElementById('btn-ai').disabled = false;
-      return; // 성공 → 종료
+      return;
     } catch (err) {
       lastErr = err;
       console.error(`AI 피드백 오류 (시도 ${attempt}/${MAX_TRIES}, status=${err.status || '-'}, retryable=${err.retryable}):`, err);
-      const canRetry = err.retryable !== false; // 명시적으로 false가 아니면 재시도 대상으로 취급
+      const canRetry = err.retryable !== false;
       if (attempt < MAX_TRIES && canRetry) {
-        // 지수 백오프 + 약간의 무작위 지연(여러 요청이 동시에 몰리는 것을 완화)
         const backoff = Math.min(1500 * Math.pow(1.7, attempt - 1), 8000);
         const jitter = Math.random() * 400;
         await sleep(backoff + jitter);
       } else if (!canRetry) {
-        break; // 재시도해도 소용없는 오류면 바로 중단
+        break;
       }
     }
   }
 
-  // 모두 실패 (또는 재시도 불가능한 오류로 중단)
   const statusInfo = lastErr && lastErr.status ? ` [HTTP ${lastErr.status}]` : '';
   resultEl.innerHTML = '😥 AI 코치 연결에 실패했어요.<br>잠시 후 <strong>"✨ 피드백 받기"</strong>를 다시 눌러주세요.<br><span style="font-size:11px;color:#999">(오류' + statusInfo + ': ' + (lastErr ? lastErr.message : '알 수 없음') + ')</span>';
   resultEl.classList.add('show');
@@ -1489,7 +1392,6 @@ window.getAIFeedback = async function() {
   document.getElementById('btn-ai').disabled = false;
 };
 
-// ── 캘린더 ────────────────────────────────────────────────
 let calY = new Date().getFullYear(), calM = new Date().getMonth();
 function renderCalendar() {
   const start = new Date(userData.startDate || today());
@@ -1522,7 +1424,6 @@ function renderCalendar() {
   document.getElementById('cal-done-count').textContent = doneCount();
 }
 
-// 캘린더 완료 칸에 얹는 작은 보라 꽃도장
 function calFlowerSVG() {
   return `<svg class="cal-flower" width="30" height="30" viewBox="0 0 100 100" aria-hidden="true">
     <g transform="translate(50,50)">
@@ -1538,7 +1439,6 @@ function calFlowerSVG() {
 window.calPrev = function() { if (calM===0){calY--;calM=11;}else calM--; renderCalendar(); };
 window.calNext = function() { if (calM===11){calY++;calM=0;}else calM++; renderCalendar(); };
 
-// ── 지난 기록 다시 보기 (모달) ───────────────────────────────
 function escHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1591,8 +1491,6 @@ window.showJournalDetail = async function(ds) {
   `;
   document.getElementById('journal-modal').classList.remove('hidden');
 
-  // 사진은 별도 문서라 모달을 연 뒤 비동기로 불러옵니다.
-  // (갤러리에서 이미 불러온 사진이면 캐시에서 바로 꺼내 재조회를 건너뜁니다)
   if (j.hasPhoto && window._currentUser) {
     const cached = galleryCache && galleryCache.find(it => it.ds === ds);
     if (cached) {
@@ -1604,7 +1502,7 @@ window.showJournalDetail = async function(ds) {
       const photoRef = window._doc(window._db, 'users', window._currentUser.uid, 'journalPhotos', ds);
       const snap = await window._getDoc(photoRef);
       const body = document.getElementById('modal-photo-body');
-      if (!body) return; // 모달이 이미 닫힌 경우
+      if (!body) return;
       if (snap.exists() && snap.data().photo) {
         body.outerHTML = `<img src="${snap.data().photo}" alt="그날의 연습 사진" style="width:100%;border-radius:8px;display:block">`;
       } else {
@@ -1622,10 +1520,7 @@ window.closeJournalModal = function() {
   document.getElementById('journal-modal').classList.add('hidden');
 };
 
-// ── 사진 모아보기 (갤러리) ────────────────────────────────
-// 한 번 불러온 사진은 galleryCache에 저장해두고, 탭을 다시 열어도
-// Firestore를 재조회하지 않고 캐시를 재사용합니다 (읽기 횟수/속도 절약).
-let galleryCache = null; // [{ ds, photo }, ...] — 최신순 정렬
+let galleryCache = null;
 
 async function renderGallery() {
   const loadingEl = document.getElementById('gallery-loading');
@@ -1650,7 +1545,7 @@ async function renderGallery() {
       const data = d.data();
       if (data && data.photo) items.push({ ds: d.id, photo: data.photo });
     });
-    items.sort((a, b) => b.ds.localeCompare(a.ds)); // 최신 날짜 먼저
+    items.sort((a, b) => b.ds.localeCompare(a.ds));
     galleryCache = items;
     renderGalleryGrid(items);
   } catch (e) {
@@ -1684,7 +1579,6 @@ function renderGalleryGrid(items) {
   }).join('');
 }
 
-// items는 최신순 정렬 상태 — 맨 앞이 최근 사진, 맨 뒤가 가장 오래된(첫날) 사진
 function renderCompare(items, compareCard) {
   if (!compareCard) compareCard = document.getElementById('gallery-compare-card');
   if (items.length < 2) { compareCard.style.display = 'none'; return; }
@@ -1705,7 +1599,6 @@ function renderCompare(items, compareCard) {
   compareCard.style.display = '';
 }
 
-// ── 통계 대시보드 ─────────────────────────────────────────
 function fmtHM(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
   if (h > 0) return `${h}시간 ${m}분`;
@@ -1715,7 +1608,6 @@ function fmtHM(sec) {
 function computeStreak() {
   const cd = userData.completedDays || {};
   let d = new Date();
-  // 오늘 아직 안 했어도 어제까지 이어져 있으면 스트릭 유지 (오늘 할 시간이 남아있으니까)
   if (!cd[ymd(d)]) d.setDate(d.getDate() - 1);
   let streak = 0;
   while (cd[ymd(d)]) {
@@ -1725,17 +1617,15 @@ function computeStreak() {
   return streak;
 }
 
-// 누적 연습시간 면적 그래프 — 시작일부터 오늘까지 계속 쌓이는 총량
 function renderCumulativeChart(ps) {
   const box = document.getElementById('cumulative-chart');
   const totalEl = document.getElementById('cumulative-total');
   if (!box) return;
 
-  // 시작일 ~ 오늘까지 날짜별 누적 (연습 기록이 있는 구간만 의미 있게)
   const start = new Date(userData.startDate || today());
   const end = new Date(today());
   const dayCount = Math.max(Math.floor((end - start) / 864e5) + 1, 1);
-  const N = Math.min(dayCount, 84); // 최대 84일
+  const N = Math.min(dayCount, 84);
 
   const pts = [];
   let cum = 0;
@@ -1773,11 +1663,9 @@ function renderCumulativeChart(ps) {
   });
   svg += `<path d="${areaPath}" fill="url(#cumGrad)"/>`;
   svg += `<path d="${linePath}" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-  // 마지막 점 강조
   const last = pts[pts.length - 1];
   svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="4" fill="#2D6A4F"/>`;
   svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="8" fill="#2D6A4F" opacity="0.15"/>`;
-  // x축 날짜 (시작·중간·오늘)
   [0, Math.floor((N-1)/2), N-1].forEach(i => {
     const p = pts[i];
     const label = `${p.dt.getMonth()+1}/${p.dt.getDate()}`;
@@ -1787,7 +1675,6 @@ function renderCumulativeChart(ps) {
   box.innerHTML = svg;
 }
 
-// 최근 14일 일별 연습시간 꺾은선 그래프 (SVG, 라이브러리 없음)
 function renderDailyLineChart(ps) {
   const box = document.getElementById('daily-line-chart');
   if (!box) return;
@@ -1842,16 +1729,13 @@ function renderStats() {
   const start = new Date(userData.startDate || today());
   renderBackupList();
 
-  // 총 연습시간 / 하루 평균
   const totalSec = Object.values(ps).reduce((a, b) => a + b, 0);
   const daysWithTime = Object.values(ps).filter(s => s > 0).length;
   document.getElementById('stat-total-time').textContent = totalSec > 0 ? fmtHM(totalSec) : '0분';
   document.getElementById('stat-avg-time').textContent = daysWithTime ? Math.round(totalSec / 60 / daysWithTime) + '분' : '-';
 
-  // 연속 기록
   document.getElementById('stat-streak').textContent = computeStreak() + '일';
 
-  // 이번 주(현재 주차) 연습시간
   const n = Math.min(Math.max(dayFromStart(), 1), 84);
   const { w: curW } = wkDay(n);
   const curWeekStart = new Date(start); curWeekStart.setDate(curWeekStart.getDate() + (curW - 1) * 7);
@@ -1862,11 +1746,9 @@ function renderStats() {
   }
   document.getElementById('stat-week-time').textContent = Math.round(weekSec / 60) + '분';
 
-  // 최근 14일 일별 연습시간 꺾은선 그래프
   renderDailyLineChart(ps);
   renderCumulativeChart(ps);
 
-  // 주차별 연습시간 막대그래프 (1~12주)
   const weekMin = [];
   for (let wi = 0; wi < 12; wi++) {
     const ws = new Date(start); ws.setDate(ws.getDate() + wi * 7);
@@ -1885,7 +1767,6 @@ function renderStats() {
       <div class="bar-label">${i + 1}주</div>
     </div>`).join('');
 
-  // 요일별 참여 현황 (완료한 날 기준, 일~토)
   const dowCount = [0, 0, 0, 0, 0, 0, 0];
   Object.keys(cd).forEach(ds => { if (cd[ds]) dowCount[new Date(ds).getDay()]++; });
   const maxDow = Math.max(...dowCount, 1);
@@ -1898,7 +1779,6 @@ function renderStats() {
       <div class="bar-label">${dowLabels[i]}</div>
     </div>`).join('');
 
-  // 달성 배지 (누적 완료 일수 기준 — 스트릭이 끊겨도 한 번 딴 배지는 유지)
   const MILESTONES = [
     { days: 3,  icon: '🌱', label: '새싹' },
     { days: 7,  icon: '🔥', label: '일주일' },
@@ -1914,7 +1794,6 @@ function renderStats() {
       <div class="badge-label">${m.label}<br>${m.days}일</div>
     </div>`).join('');
 
-  // 주차 완주 배지 (해당 주 7일을 모두 완료했을 때)
   const weekBadges = [];
   for (let wi = 0; wi < 12; wi++) {
     const ws = new Date(start); ws.setDate(ws.getDate() + wi * 7);
@@ -1929,7 +1808,6 @@ function renderStats() {
     <div class="week-badge${done ? ' earned' : ''}" title="${i + 1}주차${done ? ' 완주!' : ''}">${i + 1}</div>`).join('');
 }
 
-// ── 앱 초기화 ─────────────────────────────────────────────
 window.initApp = function() {
   const n = dayFromStart(), {w, d} = wkDay(n);
   selW = w; selD = d;
@@ -1944,13 +1822,11 @@ window.initApp = function() {
   practiceUpd();
   maybeShowOnboard();
   maybeShowReminder();
-  maybeAutoBackup(); // 7일 지났으면 백그라운드에서 자동 백업 (결과를 기다리지 않음)
+  maybeAutoBackup();
 };
 
-// ── 첫 사용자 안내(온보딩) ────────────────────────────────
 let onboardIdx = 0;
 function maybeShowOnboard() {
-  // 아직 완료한 날이 하나도 없고, 온보딩을 본 적 없으면 표시
   if (userData.onboarded) return;
   if (doneCount() > 0) { userData.onboarded = true; saveUserData(); return; }
   onboardIdx = 0;
@@ -1989,7 +1865,6 @@ window.closeOnboard = function() {
   saveUserData();
 };
 
-// ── 데이터 백업 / 내보내기 / 복원 ─────────────────────────
 function downloadFile(filename, content, mime) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -2000,7 +1875,6 @@ function downloadFile(filename, content, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// 복원용 JSON (사진은 별도 저장이라 제외 — 텍스트 기록/시간/진도만 백업)
 window.exportJSON = function() {
   const backup = {
     _type: 'handwriting-coach-backup',
@@ -2016,7 +1890,6 @@ window.exportJSON = function() {
   downloadFile(`악필교정_백업_${stamp}.json`, JSON.stringify(backup, null, 2), 'application/json');
 };
 
-// 읽기용 텍스트 (사람이 읽기 좋은 일기장 형태)
 window.exportText = function() {
   const cd = userData.completedDays  || {};
   const jn = userData.journals       || {};
@@ -2046,7 +1919,6 @@ window.exportText = function() {
     if (j.selfCheck) out += `  🔍 자가 진단: ${selfCheckLabel(j.selfCheck)}\n`;
     if (j.weakness) out += `  ✏️ 불규칙한 부분: ${j.weakness}\n`;
     if (j.feedback) {
-      // 마크다운 강조 기호 제거해서 깔끔하게
       const fb = j.feedback.replace(/\*\*/g, '').replace(/^#+\s*/gm, '');
       out += `  🤖 AI 피드백:\n`;
       fb.split('\n').forEach(line => { if (line.trim()) out += `     ${line.trim()}\n`; });
@@ -2058,10 +1930,9 @@ window.exportText = function() {
   downloadFile(`악필교정_기록_${stamp}.txt`, out, 'text/plain;charset=utf-8');
 };
 
-// 백업 파일(JSON)로 복원
 document.getElementById('restore-input').addEventListener('change', async e => {
   const f = e.target.files[0];
-  e.target.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
+  e.target.value = '';
   if (!f) return;
   try {
     const text = await f.text();
