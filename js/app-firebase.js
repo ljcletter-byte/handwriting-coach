@@ -1264,7 +1264,51 @@ window.closeWristBreak = function() {
 let uploadedImg = null;
 let uploadedThumb = null;
 
+// 아이폰 최신 기종은 사진 한 장이 4000만 화소가 넘기도 합니다. 이런 대용량 사진을
+// FileReader+<img> 방식(문자열로 변환 후 디코딩)으로 처리하면, iOS Safari가 메모리
+// 부족으로 조용히 실패하면서 캔버스가 새까맣게 나오는 버그가 있습니다(에러 없이 실패).
+// createImageBitmap()은 브라우저가 이미지를 직접 효율적으로 디코딩하는 네이티브 API라
+// 이 문제가 없고, EXIF 방향 정보도 자동으로 바로잡아 줍니다(사진이 눕거나 거꾸로 나오는
+// 문제도 함께 해결). 구형 브라우저에서 이 API가 없으면 기존 방식으로 자동 전환합니다.
 function resizeImage(file, maxSize = 1200, quality = 0.8) {
+  if (window.createImageBitmap) {
+    return resizeImageViaBitmap(file, maxSize, quality).catch(err => {
+      console.warn('createImageBitmap 처리 실패, 기존 방식으로 재시도합니다:', err);
+      return resizeImageViaLegacyImg(file, maxSize, quality);
+    });
+  }
+  return resizeImageViaLegacyImg(file, maxSize, quality);
+}
+
+async function resizeImageViaBitmap(file, maxSize, quality) {
+  // imageOrientation: 'from-image' — EXIF 방향값을 읽어 자동으로 똑바로 세워줍니다.
+  // (일부 구형 브라우저는 이 옵션 자체를 모를 수 있어 실패하면 옵션 없이 한 번 더 시도)
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch (e) {
+    bitmap = await createImageBitmap(file);
+  }
+  try {
+    let { width, height } = bitmap;
+    if (width > height && width > maxSize) {
+      height = Math.round(height * (maxSize / width));
+      width = maxSize;
+    } else if (height > maxSize) {
+      width = Math.round(width * (maxSize / height));
+      height = maxSize;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', quality);
+  } finally {
+    if (bitmap.close) bitmap.close(); // 메모리 즉시 반환
+  }
+}
+
+function resizeImageViaLegacyImg(file, maxSize, quality) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = ev => {
@@ -1296,11 +1340,41 @@ window.togglePreviewSize = function() {
   document.getElementById('upload-preview').classList.toggle('collapsed');
 };
 
+// 캔버스 픽셀을 몇 군데 샘플링해서, 사진이 새까맣게(또는 완전히 단색으로) 처리됐는지 감지합니다.
+// (드물게 아이폰에서 이미지 디코딩이 조용히 실패하면, 오류 없이 새까만 사진이 만들어질 수 있어
+//  사용자가 눈치채지 못한 채 AI에 새까만 사진을 보내는 걸 막기 위한 안전장치입니다)
+function isLikelyBlankImage(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 20; c.height = 20;
+        c.getContext('2d').drawImage(img, 0, 0, 20, 20);
+        const data = c.getContext('2d').getImageData(0, 0, 20, 20).data;
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) sum += data[i] + data[i+1] + data[i+2];
+        // 400개 픽셀의 RGB 평균이 거의 0(새까맣다)이면 실패로 간주
+        resolve(sum / (data.length / 4) < 3);
+      } catch (e) { resolve(false); } // 판별 자체가 안 되면 일단 통과시킴(과도한 차단 방지)
+    };
+    img.onerror = () => resolve(false);
+    img.src = dataUrl;
+  });
+}
+
 document.getElementById('file-input').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return;
   document.getElementById('upload-filename').textContent = f.name;
   try {
     uploadedImg   = await resizeImage(f, 1200, 0.8);
+    const blank = await isLikelyBlankImage(uploadedImg);
+    if (blank) {
+      uploadedImg = null;
+      alert('😥 사진이 새까맣게 처리됐어요 (이 기기에서 가끔 생기는 문제예요).\n\n아래 방법 중 하나로 다시 시도해주세요:\n① 같은 사진으로 한 번 더 선택\n② 사진 앱에서 살짝 잘라내기(크롭) 후 다시 시도\n③ 그래도 안 되면 스크린샷으로 찍은 사진으로 시도');
+      document.getElementById('upload-filename').textContent = '';
+      return;
+    }
     uploadedThumb = await resizeImage(f, 700, 0.6);
     const img = document.getElementById('upload-preview');
     img.src = uploadedImg; img.style.display = 'block'; img.classList.add('collapsed');
