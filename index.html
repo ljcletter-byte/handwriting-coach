@@ -100,6 +100,10 @@
     .journal-date-note{display:none;background:#FFF8E1;border:1px solid #FFE08A;border-radius:8px;padding:9px 12px;font-size:12px;color:#8A6D00;margin-bottom:14px;line-height:1.5}
     .journal-date-note.show{display:block}
     .reminder-banner{display:none;align-items:center;gap:10px;background:linear-gradient(135deg,#F0F9F0,#E8F5E9);border:1.5px solid #B7E4C7;border-radius:12px;padding:12px 14px;margin:0 0 14px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+    .growth-milestone-banner{background:linear-gradient(135deg,#F5F0FC,#EDE4FA);border-color:#D4C2EF}
+    .growth-milestone-banner .reminder-banner-text{color:#5E3FA0}
+    [data-theme="dark"] .growth-milestone-banner{background:linear-gradient(135deg,#241B36,#2E2247);border-color:#4A3A66}
+    [data-theme="dark"] .growth-milestone-banner .reminder-banner-text{color:#C9A8F0}
     .reminder-banner.show{display:flex}
     .reminder-banner-icon{font-size:22px;flex-shrink:0}
     .reminder-banner-text{flex:1;font-size:13px;color:#2D6A4F;line-height:1.5;font-weight:500}
@@ -507,6 +511,14 @@
       <button class="reminder-banner-close" onclick="dismissReminder()" aria-label="리마인더 닫기">✕</button>
     </div>
 
+    <!-- 성장 마일스톤 배너: 5일/10일/20일 등 도달 시, 변화를 확인해보라고 유도 -->
+    <div class="reminder-banner growth-milestone-banner" id="growth-milestone-banner">
+      <span class="reminder-banner-icon">✨</span>
+      <span class="reminder-banner-text" id="growth-milestone-text"></span>
+      <button type="button" onclick="switchTab('gallery'); dismissGrowthMilestone()" style="flex-shrink:0;padding:6px 12px;background:#2D6A4F;color:#fff;border:none;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">확인하기</button>
+      <button class="reminder-banner-close" onclick="dismissGrowthMilestone()" aria-label="닫기">✕</button>
+    </div>
+
     <nav class="nav-tabs" id="top-nav-hidden" style="display:none">
       <button class="nav-tab active" data-tab="mission" onclick="switchTab('mission')">📋 미션</button>
     </nav>
@@ -699,6 +711,7 @@
       <div class="card fadein" id="gallery-compare-card" style="display:none">
         <div class="sec-label" style="margin-top:0">✨ Before & After</div>
         <div class="compare-row" id="compare-row"></div>
+        <button type="button" id="btn-growth-report" onclick="openGrowthReport()" style="width:100%;margin-top:14px;padding:12px 16px;background:#2D6A4F;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">🤖 AI로 변화 분석 받기</button>
       </div>
       <div class="card fadein">
         <div id="gallery-loading" class="gallery-status">⏳ 사진을 불러오는 중...</div>
@@ -891,6 +904,14 @@
   <div class="modal-box">
     <button class="modal-close" onclick="closeJournalModal()" aria-label="일지 상세 창 닫기">✕</button>
     <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- 성장 리포트 모달 -->
+<div id="growth-modal" class="modal-overlay hidden" onclick="if(event.target===this) closeGrowthModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeGrowthModal()" aria-label="성장 리포트 닫기">✕</button>
+    <div id="growth-modal-body"></div>
   </div>
 </div>
 
