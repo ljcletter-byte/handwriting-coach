@@ -63,7 +63,8 @@ let userData = {
   completedDays: {},
   journals: {},
   practiceSeconds: {},
-  onboarded: false
+  onboarded: false,
+  growthMilestonesShown: [] // 이미 보여준 성장 마일스톤 배너(5,10,20...) 기록 — 중복 표시 방지
 };
 
 function setSyncStatus(status) {
@@ -472,6 +473,140 @@ window.dismissReminder = function() {
   const banner = document.getElementById('reminder-banner');
   if (banner) banner.classList.remove('show');
 };
+
+// ── 성장 마일스톤 배너 ─────────────────────────────────────
+// 완료 일수가 5/10/20/40/84일에 도달하면, "변화를 확인해보라"고 한 번씩 알려줍니다.
+// (배지 시스템의 마일스톤[3,7,14,30,50,84]과는 별개 — 이건 "성장 리포트 확인 유도"가 목적)
+const GROWTH_MILESTONES = [5, 10, 20, 40, 84];
+
+function maybeShowGrowthMilestone() {
+  const banner = document.getElementById('growth-milestone-banner');
+  if (!banner) return;
+  const done = doneCount();
+  const shown = userData.growthMilestonesShown || [];
+  const hit = GROWTH_MILESTONES.find(m => done >= m && !shown.includes(m));
+  if (!hit) { banner.classList.remove('show'); return; }
+  const textEl = document.getElementById('growth-milestone-text');
+  if (textEl) textEl.textContent = `연습 ${hit}일째! 지금까지 얼마나 달라졌는지 AI 분석으로 확인해볼까요?`;
+  banner.classList.add('show');
+  // 표시한 즉시 기록해서, 새로고침해도 같은 배너가 반복되지 않게 함
+  userData.growthMilestonesShown = [...shown, hit];
+  saveUserData();
+}
+
+window.dismissGrowthMilestone = function() {
+  const banner = document.getElementById('growth-milestone-banner');
+  if (banner) banner.classList.remove('show');
+};
+
+// ── 성장 리포트 (AI 사진 비교 분석) ─────────────────────────
+// 첫날 사진과 최근 사진을 함께 Claude에게 보내, 구체적으로 무엇이 달라졌는지 분석받습니다.
+window.openGrowthReport = async function() {
+  const btn = document.getElementById('btn-growth-report');
+  const origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 분석 준비 중...'; }
+  try {
+    // 사진 목록 확보 (갤러리 캐시가 있으면 재사용, 없으면 새로 조회)
+    let items = galleryCache;
+    if (!items) {
+      if (!window._currentUser) { alert('로그인이 필요해요.'); return; }
+      const colRef = window._collection(window._db, 'users', window._currentUser.uid, 'journalPhotos');
+      const snap = await window._getDocs(colRef);
+      items = [];
+      snap.forEach(d => { const data = d.data(); if (data && data.photo) items.push({ ds: d.id, photo: data.photo }); });
+      items.sort((a, b) => b.ds.localeCompare(a.ds));
+      galleryCache = items;
+    }
+    if (!items || items.length < 2) {
+      alert('아직 비교할 사진이 부족해요.\n최소 2번(서로 다른 날짜)은 사진과 함께 일지를 저장해주세요.');
+      return;
+    }
+    const latest = items[0];
+    const first  = items[items.length - 1];
+    if (first.ds === latest.ds) {
+      alert('아직 비교할 사진이 부족해요.\n최소 2번(서로 다른 날짜)은 사진과 함께 일지를 저장해주세요.');
+      return;
+    }
+
+    if (btn) btn.textContent = '⏳ AI가 비교 분석 중...';
+
+    const totalSec = Object.values(userData.practiceSeconds || {}).reduce((a, b) => a + b, 0);
+    const totalDays = doneCount();
+    const trend = computeSelfCheckTrend();
+
+    const b1 = first.photo.split(',')[1], mt1 = first.photo.split(';')[0].split(':')[1] || 'image/jpeg';
+    const b2 = latest.photo.split(',')[1], mt2 = latest.photo.split(';')[0].split(':')[1] || 'image/jpeg';
+    const uc = [
+      { type: 'text', text: `[첫 번째 사진 — ${first.ds}]` },
+      { type: 'image', source: { type: 'base64', media_type: mt1, data: b1 } },
+      { type: 'text', text: `[두 번째 사진 — ${latest.ds}]` },
+      { type: 'image', source: { type: 'base64', media_type: mt2, data: b2 } },
+      { type: 'text', text: `당신은 한국어 손글씨 교정 전문 AI 코치입니다. 위 두 장은 같은 학습자가 서로 다른 날짜(${first.ds} → ${latest.ds})에 쓴 손글씨 연습 사진입니다. 두 사진을 비교해서 구체적으로 무엇이 달라졌는지 분석해주세요.\n\n다음 형식으로 350자 내외:\n✨ **가장 눈에 띄는 변화**: 1가지\n📈 **좋아진 점**: 1~2가지 (구체적으로)\n🎯 **앞으로 다듬을 점**: 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로, 사실에 기반해서 분석해주세요.` }
+    ];
+
+    let reportText = null, lastErr = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        reportText = await requestAIFeedback(uc);
+        break;
+      } catch (err) {
+        lastErr = err;
+        console.error(`성장 리포트 오류 (시도 ${attempt}/3):`, err);
+        if (attempt < 3 && err.retryable !== false) await sleep(1500 * attempt);
+        else break;
+      }
+    }
+
+    if (!reportText) {
+      alert('😥 AI 분석에 실패했어요. 잠시 후 다시 시도해주세요.\n(' + (lastErr ? lastErr.message : '알 수 없는 오류') + ')');
+      return;
+    }
+
+    const fmt = s => { const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return h > 0 ? `${h}시간 ${m}분` : `${m}분`; };
+    const reportHtml = formatFeedbackHtml(reportText);
+    document.getElementById('growth-modal-body').innerHTML = `
+      <div class="modal-title" style="margin-bottom:4px">✨ 나의 성장 리포트</div>
+      <div class="modal-date" style="margin-bottom:16px">${first.ds} → ${latest.ds}</div>
+      <div class="compare-row" style="margin-bottom:16px">
+        <div class="compare-col"><img src="${first.photo}" alt="시작 사진"><div class="compare-label"><strong>시작</strong> · ${first.ds}</div></div>
+        <div class="compare-col"><img src="${latest.photo}" alt="최근 사진"><div class="compare-label"><strong>최근</strong> · ${latest.ds}</div></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-label">📊 함께 보는 숫자</div>
+        <div class="modal-section-body">완료 ${totalDays}일 · 총 연습시간 ${fmt(totalSec)}${trend ? ' · ' + trend : ''}</div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-label">🤖 AI 비교 분석</div>
+        <div class="modal-section-body">${reportHtml}</div>
+      </div>`;
+    document.getElementById('growth-modal').classList.remove('hidden');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+  }
+};
+
+window.closeGrowthModal = function() {
+  document.getElementById('growth-modal').classList.add('hidden');
+};
+
+// 초반 기록과 최근 기록의 자가진단(😊/😐/😥) 경향을 비교해서 한 줄로 요약
+// (데이터가 너무 적으면 조용히 null 반환 — 억지로 만들어내지 않음)
+function computeSelfCheckTrend() {
+  const jn = userData.journals || {};
+  const entries = Object.keys(jn)
+    .filter(ds => jn[ds] && jn[ds].selfCheck)
+    .sort()
+    .map(ds => jn[ds].selfCheck);
+  if (entries.length < 4) return null;
+  const score = v => v === 'good' ? 1 : v === 'soso' ? 0.5 : 0;
+  const n = Math.min(3, Math.floor(entries.length / 2));
+  const early = entries.slice(0, n);
+  const recent = entries.slice(-n);
+  const earlyAvg = Math.round(early.reduce((a, b) => a + score(b), 0) / early.length * 100);
+  const recentAvg = Math.round(recent.reduce((a, b) => a + score(b), 0) / recent.length * 100);
+  if (recentAvg <= earlyAvg) return `자가진단 안정도 ${recentAvg}%`;
+  return `자가진단 긍정 비율 ${earlyAvg}% → ${recentAvg}%`;
+}
 
 function updateNotifToggleUI() {
   const title = document.getElementById('notif-toggle-title');
@@ -1958,6 +2093,7 @@ window.initApp = function() {
   practiceUpd();
   maybeShowOnboard();
   maybeShowReminder();
+  maybeShowGrowthMilestone();
   maybeAutoBackup();
 };
 
