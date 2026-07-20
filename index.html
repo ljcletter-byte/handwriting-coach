@@ -562,14 +562,7 @@
         </div>
       </div>
 
-      <!-- 오늘의 미션 -->
-      <div class="sec-label">오늘의 미션</div>
-      <div class="card fadein">
-        <div class="mission-header"><h2 id="mission-title">1주차: 선긋기 & 기초 획</h2><span class="mission-badge" id="mission-badge">Day 1</span></div>
-        <div id="mission-body"></div>
-      </div>
-
-      <!-- 오늘의 연습 안내 (접이식 — 이전엔 별도 탭이었으나 미션 탭 안으로 통합) -->
+      <!-- 오늘의 연습 안내 (준비 루틴 다음, 미션 시작 전 — 먼저 안내를 읽고 미션을 진행하도록) -->
       <div class="accordion" id="acc-worksheet">
         <button class="accordion-head" onclick="toggleAccordion('acc-worksheet')">
           <span>📄 오늘의 연습 안내 — A4 용지 단계별 가이드</span>
@@ -578,6 +571,13 @@
         <div class="accordion-body">
           <div class="card fadein" id="worksheet-content"></div>
         </div>
+      </div>
+
+      <!-- 오늘의 미션 -->
+      <div class="sec-label">오늘의 미션</div>
+      <div class="card fadein">
+        <div class="mission-header"><h2 id="mission-title">1주차: 선긋기 & 기초 획</h2><span class="mission-badge" id="mission-badge">Day 1</span></div>
+        <div id="mission-body"></div>
       </div>
 
       <!-- 10분 타이머 -->
