@@ -501,6 +501,17 @@ window.dismissGrowthMilestone = function() {
 
 // ── 성장 리포트 (AI 사진 비교 분석) ─────────────────────────
 // 첫날 사진과 최근 사진을 함께 Claude에게 보내, 구체적으로 무엇이 달라졌는지 분석받습니다.
+// 누적된 "오늘 발견한 불규칙한 부분" 메모를 날짜순으로 모읍니다.
+// (짧은 메모 여러 개를 모아 AI가 반복되는 패턴을 짚어낼 수 있게)
+function collectWeaknessEntries() {
+  const jn = userData.journals || {};
+  return Object.keys(jn)
+    .filter(ds => jn[ds] && jn[ds].weakness && jn[ds].weakness.trim())
+    .sort()
+    .map(ds => ({ ds, text: jn[ds].weakness.trim() }))
+    .slice(-60); // 너무 길어지지 않도록 최근 60개까지만
+}
+
 window.openGrowthReport = async function() {
   const btn = document.getElementById('btn-growth-report');
   const origText = btn ? btn.textContent : '';
@@ -509,40 +520,58 @@ window.openGrowthReport = async function() {
     // 사진 목록 확보 (갤러리 캐시가 있으면 재사용, 없으면 새로 조회)
     let items = galleryCache;
     if (!items) {
-      if (!window._currentUser) { alert('로그인이 필요해요.'); return; }
-      const colRef = window._collection(window._db, 'users', window._currentUser.uid, 'journalPhotos');
-      const snap = await window._getDocs(colRef);
-      items = [];
-      snap.forEach(d => { const data = d.data(); if (data && data.photo) items.push({ ds: d.id, photo: data.photo }); });
-      items.sort((a, b) => b.ds.localeCompare(a.ds));
-      galleryCache = items;
+      if (window._currentUser) {
+        const colRef = window._collection(window._db, 'users', window._currentUser.uid, 'journalPhotos');
+        const snap = await window._getDocs(colRef);
+        items = [];
+        snap.forEach(d => { const data = d.data(); if (data && data.photo) items.push({ ds: d.id, photo: data.photo }); });
+        items.sort((a, b) => b.ds.localeCompare(a.ds));
+        galleryCache = items;
+      } else {
+        items = [];
+      }
     }
-    if (!items || items.length < 2) {
-      alert('아직 비교할 사진이 부족해요.\n최소 2번(서로 다른 날짜)은 사진과 함께 일지를 저장해주세요.');
-      return;
-    }
-    const latest = items[0];
-    const first  = items[items.length - 1];
-    if (first.ds === latest.ds) {
-      alert('아직 비교할 사진이 부족해요.\n최소 2번(서로 다른 날짜)은 사진과 함께 일지를 저장해주세요.');
+    const hasPhotoData = items.length >= 2 && items[0].ds !== items[items.length - 1].ds;
+    const latest = hasPhotoData ? items[0] : null;
+    const first  = hasPhotoData ? items[items.length - 1] : null;
+
+    const weaknessEntries = collectWeaknessEntries();
+    const hasWeaknessData = weaknessEntries.length >= 3;
+
+    if (!hasPhotoData && !hasWeaknessData) {
+      alert('아직 분석할 데이터가 부족해요.\n다음 중 하나를 채워주시면 분석해드릴게요:\n· 사진과 함께 일지를 2번 이상(서로 다른 날짜) 저장\n· "오늘 발견한 불규칙한 부분"을 3번 이상 작성');
       return;
     }
 
-    if (btn) btn.textContent = '⏳ AI가 비교 분석 중...';
+    if (btn) btn.textContent = '⏳ AI가 분석 중...';
 
     const totalSec = Object.values(userData.practiceSeconds || {}).reduce((a, b) => a + b, 0);
     const totalDays = doneCount();
     const trend = computeSelfCheckTrend();
 
-    const b1 = first.photo.split(',')[1], mt1 = first.photo.split(';')[0].split(':')[1] || 'image/jpeg';
-    const b2 = latest.photo.split(',')[1], mt2 = latest.photo.split(';')[0].split(':')[1] || 'image/jpeg';
-    const uc = [
-      { type: 'text', text: `[첫 번째 사진 — ${first.ds}]` },
-      { type: 'image', source: { type: 'base64', media_type: mt1, data: b1 } },
-      { type: 'text', text: `[두 번째 사진 — ${latest.ds}]` },
-      { type: 'image', source: { type: 'base64', media_type: mt2, data: b2 } },
-      { type: 'text', text: `당신은 한국어 손글씨 교정 전문 AI 코치입니다. 위 두 장은 같은 학습자가 서로 다른 날짜(${first.ds} → ${latest.ds})에 쓴 손글씨 연습 사진입니다. 두 사진을 비교해서 구체적으로 무엇이 달라졌는지 분석해주세요.\n\n다음 형식으로 350자 내외:\n✨ **가장 눈에 띄는 변화**: 1가지\n📈 **좋아진 점**: 1~2가지 (구체적으로)\n🎯 **앞으로 다듬을 점**: 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로, 사실에 기반해서 분석해주세요.` }
-    ];
+    // 데이터 상황에 맞춰 프롬프트를 유연하게 구성 (사진만/메모만/둘 다)
+    const uc = [];
+    let taskLines = [];
+    if (hasPhotoData) {
+      const b1 = first.photo.split(',')[1], mt1 = first.photo.split(';')[0].split(':')[1] || 'image/jpeg';
+      const b2 = latest.photo.split(',')[1], mt2 = latest.photo.split(';')[0].split(':')[1] || 'image/jpeg';
+      uc.push({ type: 'text', text: `[사진 1 — ${first.ds}]` });
+      uc.push({ type: 'image', source: { type: 'base64', media_type: mt1, data: b1 } });
+      uc.push({ type: 'text', text: `[사진 2 — ${latest.ds}]` });
+      uc.push({ type: 'image', source: { type: 'base64', media_type: mt2, data: b2 } });
+      taskLines.push(`위 두 장은 같은 학습자가 서로 다른 날짜(${first.ds} → ${latest.ds})에 쓴 손글씨 연습 사진입니다. 두 사진을 비교해 구체적으로 무엇이 달라졌는지 분석해주세요.`);
+    }
+    if (hasWeaknessData) {
+      const listText = weaknessEntries.map(e => `- (${e.ds}) ${e.text}`).join('\n');
+      uc.push({ type: 'text', text: `[학습자가 날짜별로 직접 기록한 "오늘 발견한 불규칙한 부분" 메모]\n${listText}` });
+      taskLines.push('위 메모들을 살펴보고, 여러 날짜에 걸쳐 반복적으로 등장하는 약점 패턴이 있다면 짚어주세요. (예: 특정 자음/획/균형 문제가 계속 언급되는지)');
+    }
+
+    let instruction = `당신은 한국어 손글씨 교정 전문 AI 코치입니다. ${taskLines.join(' ')}\n\n다음 형식으로 350자 내외:\n`;
+    if (hasPhotoData) instruction += `✨ **가장 눈에 띄는 변화**: 1가지\n📈 **좋아진 점**: 1~2가지 (구체적으로)\n`;
+    if (hasWeaknessData) instruction += `🔁 **반복되는 약점 패턴**: 데이터에 근거해 1가지 (패턴이 뚜렷하지 않으면 "특별한 반복 패턴은 안 보여요, 골고루 발전 중입니다"처럼 솔직하게)\n`;
+    instruction += `🎯 **다음에 집중할 점**: 1가지\n🌱 **응원 한마디**: 따뜻한 한 문장\n\n친근하고 격려적인 톤으로, 반드시 제공된 자료(사진/메모)에 근거해서 분석해주세요. 근거 없이 추측하지 마세요.`;
+    uc.push({ type: 'text', text: instruction });
 
     let reportText = null, lastErr = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -564,19 +593,24 @@ window.openGrowthReport = async function() {
 
     const fmt = s => { const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return h > 0 ? `${h}시간 ${m}분` : `${m}분`; };
     const reportHtml = formatFeedbackHtml(reportText);
-    document.getElementById('growth-modal-body').innerHTML = `
-      <div class="modal-title" style="margin-bottom:4px">✨ 나의 성장 리포트</div>
-      <div class="modal-date" style="margin-bottom:16px">${first.ds} → ${latest.ds}</div>
+    const photoBlock = hasPhotoData ? `
       <div class="compare-row" style="margin-bottom:16px">
         <div class="compare-col"><img src="${first.photo}" alt="시작 사진"><div class="compare-label"><strong>시작</strong> · ${first.ds}</div></div>
         <div class="compare-col"><img src="${latest.photo}" alt="최근 사진"><div class="compare-label"><strong>최근</strong> · ${latest.ds}</div></div>
-      </div>
+      </div>` : '';
+    const dateRangeLabel = hasPhotoData ? `${first.ds} → ${latest.ds}`
+      : (weaknessEntries.length ? `${weaknessEntries[0].ds} → ${weaknessEntries[weaknessEntries.length-1].ds}` : '');
+
+    document.getElementById('growth-modal-body').innerHTML = `
+      <div class="modal-title" style="margin-bottom:4px">✨ 나의 성장 리포트</div>
+      <div class="modal-date" style="margin-bottom:16px">${dateRangeLabel}</div>
+      ${photoBlock}
       <div class="modal-section">
         <div class="modal-section-label">📊 함께 보는 숫자</div>
-        <div class="modal-section-body">완료 ${totalDays}일 · 총 연습시간 ${fmt(totalSec)}${trend ? ' · ' + trend : ''}</div>
+        <div class="modal-section-body">완료 ${totalDays}일 · 총 연습시간 ${fmt(totalSec)}${trend ? ' · ' + trend : ''}${hasWeaknessData ? ` · 취약점 메모 ${weaknessEntries.length}개 분석` : ''}</div>
       </div>
       <div class="modal-section">
-        <div class="modal-section-label">🤖 AI 비교 분석</div>
+        <div class="modal-section-label">🤖 AI 분석</div>
         <div class="modal-section-body">${reportHtml}</div>
       </div>`;
     document.getElementById('growth-modal').classList.remove('hidden');
