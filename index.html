@@ -362,6 +362,10 @@
     [data-theme="dark"] .selfcheck-opt span{color:var(--text3)}
     [data-theme="dark"] .selfcheck-opt.selected{border-color:var(--green);background:#16281F}
     [data-theme="dark"] .selfcheck-opt.selected span{color:var(--green)}
+    .practice-complete-box{background:#F0F9F0;border:1.5px solid #B7E4C7;border-radius:12px;padding:16px;margin-bottom:18px}
+    .practice-complete-desc{font-size:12px;color:#5E8F73;margin:0 0 10px}
+    [data-theme="dark"] .practice-complete-box{background:#16281F;border-color:#2E5A44}
+    [data-theme="dark"] .practice-complete-desc{color:var(--green2)}
     [data-theme="dark"] .wrist-break{background:linear-gradient(135deg,#3D2F0E,#332708);border-color:#5C4A17}
     [data-theme="dark"] .wrist-break-close{color:#D4A82E}
     [data-theme="dark"] .wrist-break-title{color:#E4C77E}
@@ -664,7 +668,7 @@
         <div class="journal-date-note" id="journal-date-note"></div>
 
         <!-- ① 연습 완료 섹션 — 이것만 눌러도 스탬프가 찍힙니다 -->
-        <div style="background:#F0F9F0;border:1.5px solid #B7E4C7;border-radius:12px;padding:16px;margin-bottom:18px">
+        <div class="practice-complete-box">
           <div class="field-label" style="margin-top:0">✅ 오늘 연습 완료</div>
           <div class="selfcheck-box" style="margin-bottom:12px">
             <div class="selfcheck-q" id="selfcheck-q">이번 주 관찰 포인트를 얼마나 지켰나요?</div>
@@ -674,7 +678,7 @@
               <button type="button" class="selfcheck-opt" data-v="hard"  onclick="selectSelfCheck('hard')">😥<span>아쉬움</span></button>
             </div>
           </div>
-          <p style="font-size:12px;color:#5E8F73;margin:0 0 10px">연습 시간은 스톱워치로 자동 기록돼요. 아래 버튼을 누르면 오늘 스탬프가 찍힙니다. (사진·AI 피드백은 없어도 괜찮아요 — 나중에 따로 추가할 수 있어요)</p>
+          <p class="practice-complete-desc">연습 시간은 스톱워치로 자동 기록돼요. 아래 버튼을 누르면 오늘 스탬프가 찍힙니다. (사진·AI 피드백은 없어도 괜찮아요 — 나중에 따로 추가할 수 있어요)</p>
           <button class="btn btn-primary" id="btn-save-practice" onclick="savePracticeCompletion()" style="width:100%">✅ 오늘 연습 완료로 저장 (스탬프 찍기)</button>
           <span class="save-ok" id="save-ok-practice" style="display:block;margin-top:8px;text-align:center">✅ 저장 완료! (클라우드 동기화됨)</span>
         </div>
