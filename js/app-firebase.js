@@ -1789,7 +1789,7 @@ function renderCalendar() {
     const isDone = (userData.completedDays || {})[ds];
     const sec = (userData.practiceSeconds || {})[ds] || 0;
     const min = Math.round(sec / 60);
-    el.className = 'cal-day' + (isDone ? ' done' : isT ? ' today' : inC ? ' challenge' : '');
+    el.className = 'cal-day' + (isDone ? ' done' : inC ? ' challenge' : '') + (isT ? ' today' : '');
     el.innerHTML = `<div class="cal-day-content"><span class="cal-day-num">${d}</span>` +
       (isDone && min > 0 ? `<span class="cal-day-min">${min}분</span>` : '') + `</div>` +
       (isDone ? calFlowerSVG() : '');
