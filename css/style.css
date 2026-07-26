@@ -16,7 +16,7 @@
   --border2: #D4D2CC;
   --text:    #1C1C1E;
   --text2:   #68686B;
-  --text3:   #9C9C9E;
+  --text3:   #767676; /* WCAG AA 대비 확보 (기존 #9C9C9E는 흰 카드 배경 대비 2.7:1로 미달) */
   --r:       16px;
   --r2:      10px;
   --shadow:  0 1px 3px rgba(20,20,18,.05);
@@ -38,7 +38,7 @@
   --border2: #3C3D41;
   --text:    #F0EFEC;
   --text2:   #A8A7A4;
-  --text3:   #7C7B78;
+  --text3:   #868686; /* WCAG AA 대비 확보 (기존 #7C7B78은 카드 배경 대비 4.07:1로 미달) */
   --shadow:  0 1px 3px rgba(0,0,0,.35);
   --shadow2: 0 4px 18px rgba(0,0,0,.5);
 }
@@ -57,7 +57,7 @@
     --border2: #3C3D41;
     --text:    #F0EFEC;
     --text2:   #A8A7A4;
-    --text3:   #7C7B78;
+    --text3:   #868686; /* WCAG AA 대비 확보 */
     --shadow:  0 1px 3px rgba(0,0,0,.35);
     --shadow2: 0 4px 18px rgba(0,0,0,.5);
   }
@@ -286,7 +286,9 @@ body {
 }
 .day-pills { padding: 10px 18px; display: flex; gap: 5px; flex-wrap: wrap; border-top: 1px solid var(--bg2); }
 .day-pill {
-  padding: 3px 10px; border-radius: 20px; font-size: 10px;
+  padding: 8px 14px; min-height: 36px; min-width: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 20px; font-size: 12px;
   cursor: pointer; border: 1px solid var(--border);
   background: var(--card); color: var(--text2); font-family: inherit; transition: all .2s;
 }
@@ -500,7 +502,7 @@ textarea:focus { border-color: var(--text2); }
 }
 .cal-nav-btn:hover { background: var(--bg2); }
 .cal-dow { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 4px; }
-.cal-dow div { text-align: center; font-size: 9px; font-weight: 500; color: var(--text3); letter-spacing: .06em; }
+.cal-dow div { text-align: center; font-size: 11px; font-weight: 500; color: var(--text3); letter-spacing: .06em; }
 .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
 .cal-day {
   aspect-ratio: 1;
@@ -516,8 +518,8 @@ textarea:focus { border-color: var(--text2); }
 .cal-day.done::after { content: '✓'; position: absolute; top: 1px; right: 2px; font-size: 6px; opacity: .6; }
 .cal-day.challenge { border: 1px solid var(--border); }
 .cal-legend { display: flex; gap: 12px; margin-top: 9px; justify-content: flex-end; }
-.cal-legend-item { display: flex; align-items: center; gap: 3px; font-size: 9px; color: var(--text3); }
-.leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+.cal-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3); }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; }
 .cal-summary { text-align: center; color: var(--text3); font-size: 11px; margin-top: 6px; }
 .cal-summary strong { color: var(--green); }
 
@@ -530,8 +532,8 @@ textarea:focus { border-color: var(--text2); }
   padding: 8px 12px;
   font-size: 15px;
   cursor: pointer;
-  min-height: 40px;
-  min-width: 40px;
+  min-height: 44px;
+  min-width: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
