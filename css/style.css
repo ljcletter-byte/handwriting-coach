@@ -513,7 +513,7 @@ textarea:focus { border-color: var(--text2); }
   color: var(--text2);
 }
 .cal-day.empty { opacity: 0; }
-.cal-day.today { background: var(--bg2); color: var(--text); font-weight: 600; }
+.cal-day.today { background: var(--bg2); color: var(--text); font-weight: 600; box-shadow: 0 0 0 2px var(--green) inset; }
 .cal-day.done { background: var(--green); color: #fff; font-weight: 500; }
 .cal-day.done::after { content: '✓'; position: absolute; top: 1px; right: 2px; font-size: 6px; opacity: .6; }
 .cal-day.challenge { border: 1px solid var(--border); }
