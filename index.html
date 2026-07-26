@@ -276,6 +276,10 @@
       100%{transform:scale(1) rotate(-8deg);opacity:1}
     }
     .stamp-caption{background:#fff;color:#7E5BC2;font-size:15px;font-weight:700;padding:8px 20px;border-radius:24px;box-shadow:0 3px 12px rgba(0,0,0,.12);animation:capFade .4s ease .35s both}
+    .leg-dot.done{background:#EDE7F6;border:1px solid #C9B8E8}
+    [data-theme="dark"] .leg-dot.done{background:#2A2033;border-color:#4A3A66}
+    .leg-dot.today{background:none;border:2px solid var(--green)}
+    .leg-dot.challenge{background:var(--card);border:1px solid var(--border)}
     @keyframes capFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     .cal-flower{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.28;pointer-events:none;z-index:0}
     .cal-day.done{position:relative;background:#EDE7F6!important;border-color:#C9B8E8!important}
@@ -698,9 +702,9 @@
         <div class="cal-dow"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
         <div class="cal-grid" id="cal-grid"></div>
         <div class="cal-legend">
-          <div class="cal-legend-item"><div class="leg-dot" style="background:#2D6A4F"></div>완료</div>
-          <div class="cal-legend-item"><div class="leg-dot" style="background:#D8F3DC;border:1px solid #74C69D"></div>오늘</div>
-          <div class="cal-legend-item"><div class="leg-dot" style="background:#fff;border:1px solid #D9D4CB"></div>챌린지 기간</div>
+          <div class="cal-legend-item"><div class="leg-dot done"></div>완료</div>
+          <div class="cal-legend-item"><div class="leg-dot today"></div>오늘</div>
+          <div class="cal-legend-item"><div class="leg-dot challenge"></div>챌린지 기간</div>
         </div>
       </div>
       <div class="cal-summary">완료 <strong id="cal-done-count">0</strong>일 / 84일</div>
