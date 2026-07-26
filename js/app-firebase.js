@@ -19,7 +19,7 @@ function applyTextSize(level) {
   document.body.classList.remove('text-lg', 'text-xl');
   if (level) document.body.classList.add(level);
   const ind = document.getElementById('text-size-indicator');
-  if (ind) ind.textContent = level ? ` ${TEXT_SIZE_LABELS[level]}` : '';
+  if (ind) ind.textContent = level ? `(${TEXT_SIZE_LABELS[level]})` : '';
 }
 (function initTextSize() {
   const saved = localStorage.getItem('textSizeLevel') || '';
@@ -313,7 +313,7 @@ async function doReset() {
   clearInterval(swIv); swIv = null;
   tSec = 600; swSec = 0; swSecAutoSaved = 0;
   breakShown = false;
-  document.getElementById('btn-timer').textContent = '시작';
+  setTimerBtnLabel('시작');
   document.getElementById('timer-done').classList.remove('show');
   tUpd(); swUpd(); practiceUpd();
   document.getElementById('weakness-input').value = '';
@@ -1121,6 +1121,8 @@ const swFmt = s => {
 const TIMER_RING_CIRC = 2 * Math.PI * 98; // 원 둘레 (반지름 98)
 function tUpd() {
   document.getElementById('timer-display').textContent = tFmt(tSec);
+  const fabTime = document.getElementById('timer-fab-time');
+  if (fabTime) fabTime.textContent = tFmt(tSec);
   const ring = document.getElementById('timer-ring-fill');
   if (ring) {
     const pct = tSec / 600; // 남은 비율
@@ -1155,14 +1157,20 @@ function practiceUpd() {
     `오늘 <strong>${fmt(todaySec)}</strong> · 이번 주 <strong>${fmt(weekSec)}</strong> · 전체 <strong>${fmt(totalSec)}</strong>`;
 }
 
-window.timerToggle = function() {
+function setTimerBtnLabel(text) {
   const btn = document.getElementById('btn-timer');
+  const fabBtn = document.getElementById('btn-timer-fab');
+  if (btn) btn.textContent = text;
+  if (fabBtn) fabBtn.textContent = text;
+}
+
+window.timerToggle = function() {
   if (tRun || swIv) {
     clearInterval(tIv); tIv = null; tRun = false;
     clearInterval(swIv); swIv = null;
-    btn.textContent = '계속';
+    setTimerBtnLabel('계속');
   } else {
-    btn.textContent = '일시정지';
+    setTimerBtnLabel('일시정지');
     if (tSec > 0) {
       tRun = true;
       tIv = setInterval(() => {
@@ -1246,7 +1254,7 @@ window.timerReset = function() {
   tSec = 600;
   breakShown = false;
   window.closeWristBreak && window.closeWristBreak();
-  document.getElementById('btn-timer').textContent = '시작';
+  setTimerBtnLabel('시작');
   document.getElementById('timer-done').classList.remove('show');
   tUpd();
   swUpd();
@@ -1435,7 +1443,7 @@ window.savePracticeCompletion = async function() {
   if (swIv) {
     clearInterval(swIv); swIv = null;
     clearInterval(tIv); tIv = null; tRun = false;
-    document.getElementById('btn-timer').textContent = '시작';
+    setTimerBtnLabel('시작');
   }
   flushPracticeTimeToLocal();
   swSec = 0;
@@ -1488,7 +1496,7 @@ window.saveJournal = async function() {
   if (swIv) {
     clearInterval(swIv); swIv = null;
     clearInterval(tIv); tIv = null; tRun = false;
-    document.getElementById('btn-timer').textContent = '시작';
+    setTimerBtnLabel('시작');
   }
   flushPracticeTimeToLocal();
   swSec = 0;
@@ -2372,3 +2380,20 @@ document.getElementById('restore-input').addEventListener('change', async e => {
     alert('파일을 읽는 중 오류가 발생했어요. 올바른 백업 파일인지 확인해주세요.');
   }
 });
+
+// 타이머 카드가 스크롤로 화면 위쪽 밖으로 지나가면 하단에 미니 타이머 바를 띄운다.
+// (10분 타이머 카드는 오늘 화면 맨 아래쪽이라, 매일 여는 화면에서 매번 끝까지
+//  스크롤하지 않아도 시작/일시정지할 수 있도록 하기 위함)
+(function initTimerFab() {
+  const card = document.getElementById('timer-card-modern');
+  const fab  = document.getElementById('timer-fab');
+  if (!card || !fab || !('IntersectionObserver' in window)) return;
+  const io = new IntersectionObserver((entries) => {
+    const e = entries[0];
+    // 카드가 뷰포트 안에 있으면 숨김. 카드가 "위쪽으로" 지나간 경우(아래로 스크롤)에만 표시.
+    // (아직 카드에 도달하기 전, 즉 카드가 화면 아래에 있는 경우는 표시하지 않음)
+    const scrolledPast = !e.isIntersecting && e.boundingClientRect.top < 0;
+    fab.classList.toggle('show', scrolledPast);
+  }, { threshold: 0 });
+  io.observe(card);
+})();
