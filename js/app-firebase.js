@@ -1589,7 +1589,7 @@ async function loadJournal() {
   const t = journalDate;
   const j = (userData.journals || {})[t] || {};
   document.getElementById('weakness-input').value = j.weakness || '';
-  document.getElementById('feedback-input').value = j.feedback || '';
+  document.getElementById('feedback-input').value = stripMarkdown(j.feedback || '');
   selfCheckValue = j.selfCheck || null;
   renderSelfCheck();
 
@@ -1744,9 +1744,9 @@ window.getAIFeedback = async function() {
         loadingEl.textContent = `⏳ 연결이 잠시 불안정해요. 다시 시도 중... (${attempt}/${MAX_TRIES})`;
       }
       const txt = await requestAIFeedback(uc);
-      resultEl.innerHTML = txt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      resultEl.innerHTML = renderMarkdownHtml(txt);
       resultEl.classList.add('show');
-      document.getElementById('feedback-input').value = txt;
+      document.getElementById('feedback-input').value = stripMarkdown(txt);
       loadingEl.classList.remove('show');
       document.getElementById('btn-ai').disabled = false;
       return;
@@ -1765,7 +1765,7 @@ window.getAIFeedback = async function() {
   }
 
   const statusInfo = lastErr && lastErr.status ? ` [HTTP ${lastErr.status}]` : '';
-  resultEl.innerHTML = '😥 AI 코치 연결에 실패했어요.<br>잠시 후 <strong>"✨ 피드백 받기"</strong>를 다시 눌러주세요.<br><span style="font-size:11px;color:#999">(오류' + statusInfo + ': ' + (lastErr ? lastErr.message : '알 수 없음') + ')</span>';
+  resultEl.innerHTML = '😥 AI 코치 연결에 실패했어요.<br>잠시 후 <strong>"✨ 피드백 받기"</strong>를 다시 눌러주세요.<br><span style="font-size:11px;color:var(--text3)">(오류' + statusInfo + ': ' + (lastErr ? lastErr.message : '알 수 없음') + ')</span>';
   resultEl.classList.add('show');
   loadingEl.classList.remove('show');
   document.getElementById('btn-ai').disabled = false;
@@ -1823,8 +1823,40 @@ function escHtml(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>');
 }
+
+// AI 피드백에 포함된 마크다운(#, ##, **, - )을 실제 스타일로 렌더링.
+// 화면에 그대로 보여줄 때(ai-result 박스, 상세 모달, 성장 리포트) 사용.
+function renderMarkdownHtml(s) {
+  const bold = t => t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  const escaped = String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped
+    .split('\n')
+    .map(line => {
+      const h = line.match(/^(#{1,6})\s+(.*)$/);
+      if (h) {
+        const size = h[1].length === 1 ? '15px' : h[1].length === 2 ? '14px' : '13px';
+        return `<div style="font-weight:700;font-size:${size};margin:10px 0 4px;color:var(--text)">${bold(h[2])}</div>`;
+      }
+      const li = line.match(/^[-*]\s+(.*)$/);
+      if (li) return `<div style="padding-left:14px;margin:2px 0">• ${bold(li[1])}</div>`;
+      return bold(line);
+    })
+    .join('<br>');
+}
+
+// 마크다운 기호(#, **, -)를 걷어낸 순수 텍스트. 편집 가능한 <textarea>(피드백 메모)는
+// 굵게/제목 같은 서식을 표시할 수 없으므로, 여기엔 기호가 남지 않은 버전을 넣는다.
+function stripMarkdown(s) {
+  return String(s)
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/^[-*]\s+/gm, '• ')
+    .trim();
+}
+
 function formatFeedbackHtml(s) {
-  return escHtml(s).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  return renderMarkdownHtml(s);
 }
 
 window.showJournalDetail = async function(ds) {
