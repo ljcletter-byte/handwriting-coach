@@ -110,9 +110,9 @@
     .reminder-banner-close{background:none;border:none;color:#5E8F73;font-size:15px;cursor:pointer;padding:10px;flex-shrink:0;line-height:1;min-width:34px;min-height:34px}
     .reminder-banner-close:hover{color:#2D6A4F}
     .app-header-inner{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-    .text-size-btn{margin-left:auto;background:var(--bg2);border:1.5px solid var(--border);color:var(--text2);font-family:inherit;font-weight:700;border-radius:20px;padding:8px 14px;font-size:14px;cursor:pointer;min-height:40px;min-width:40px;display:flex;align-items:center;gap:2px}
+    .text-size-btn{margin-left:auto;background:var(--bg2);border:1.5px solid var(--border);color:var(--text2);font-family:inherit;font-weight:700;border-radius:20px;padding:9px 14px;font-size:14px;cursor:pointer;min-height:44px;min-width:44px;display:flex;align-items:center;gap:5px}
     .text-size-btn:hover{background:var(--border)}
-    #text-size-indicator{font-size:10px;opacity:.85}
+    #text-size-indicator{font-size:11px;font-weight:500;opacity:.85}
     body.text-lg{zoom:1.15}
     body.text-xl{zoom:1.3}
     @supports not (zoom: 1){
@@ -437,6 +437,22 @@
     [data-theme="dark"] .timer-ring-track{stroke:var(--border)}
     [data-theme="dark"] .timer-ring-center .timer-display{color:var(--text)}
     [data-theme="dark"] .btn-modern-primary{background:var(--text);color:var(--bg)}
+
+    /* 스크롤로 타이머 카드를 지나치면 뜨는 미니 바 */
+    .timer-fab{
+      position:fixed; left:50%; transform:translateX(-50%) translateY(12px);
+      bottom:calc(64px + env(safe-area-inset-bottom,0) + 12px);
+      z-index:850; width:calc(100% - 28px); max-width:360px;
+      display:flex; align-items:center; gap:10px;
+      background:var(--card); border:1px solid var(--border); border-radius:999px;
+      box-shadow:var(--shadow2); padding:8px 8px 8px 18px;
+      opacity:0; pointer-events:none; visibility:hidden;
+      transition:opacity .2s ease, transform .2s ease, visibility .2s;
+    }
+    .timer-fab.show{opacity:1; pointer-events:auto; visibility:visible; transform:translateX(-50%) translateY(0)}
+    .timer-fab-time{font-size:15px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; flex:1}
+    .timer-fab-btn{height:40px; min-width:76px; padding:0 18px; border-radius:20px; border:none; background:var(--text); color:var(--card); font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit}
+    @media (min-width:720px){ .timer-fab{ left:50%; } }
   </style>
 </head>
 <body>
@@ -586,7 +602,7 @@
 
       <!-- 10분 타이머 -->
       <div class="sec-label">10분 타이머</div>
-      <div class="card timer-card-modern fadein">
+      <div class="card timer-card-modern fadein" id="timer-card-modern">
         <div class="timer-ring-wrap">
           <svg class="timer-ring-svg" width="220" height="220" viewBox="0 0 220 220">
             <circle cx="110" cy="110" r="98" fill="none" class="timer-ring-track" stroke-width="3"></circle>
@@ -614,6 +630,12 @@
           <div class="wrist-break-title">잠깐! 손목 풀기 타임</div>
           <div class="wrist-break-desc">벌써 5분이 지났어요. 손목을 시계·반시계 방향으로 5번씩 돌리고, 손가락을 쫙 폈다 접어보세요. 힘을 뺀 뒤 다시 시작하면 훨씬 편해요.</div>
         </div>
+      </div>
+
+      <!-- 타이머 카드를 스크롤로 지나치면 나타나는 미니 바 — 맨 아래까지 스크롤하지 않아도 시작/일시정지할 수 있게 -->
+      <div class="timer-fab" id="timer-fab">
+        <span class="timer-fab-time" id="timer-fab-time">10:00</span>
+        <button class="timer-fab-btn" id="btn-timer-fab" onclick="timerToggle()">시작</button>
       </div>
 
       <!-- 주차 선택 (접이식) -->
