@@ -238,7 +238,8 @@ body {
 /* ── 주차탭 (선택 상태: 먹색으로 통일) ───────────────────── */
 .week-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
 .week-tab {
-  padding: 4px 11px;
+  padding: 10px 14px; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
   border-radius: 20px;
   font-size: 11px; font-weight: 500;
   cursor: pointer;
@@ -286,7 +287,7 @@ body {
 }
 .day-pills { padding: 10px 18px; display: flex; gap: 5px; flex-wrap: wrap; border-top: 1px solid var(--bg2); }
 .day-pill {
-  padding: 8px 14px; min-height: 36px; min-width: 36px;
+  padding: 8px 14px; min-height: 44px; min-width: 44px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 20px; font-size: 12px;
   cursor: pointer; border: 1px solid var(--border);
@@ -420,7 +421,7 @@ body {
 .btn-default:hover { background: var(--bg2); }
 .btn-ai {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 6px 14px;
+  padding: 6px 14px; min-height: 36px;
   background: var(--text); color: var(--card);
   border: none; border-radius: 999px;
   font-size: 11px; font-weight: 600;
