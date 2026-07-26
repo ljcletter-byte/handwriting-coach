@@ -2126,8 +2126,10 @@ function renderDailyLineChart(ps) {
   svg += `<path d="${linePath}" fill="none" stroke="#2D6A4F" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
   pts.forEach((p, i) => {
     if (p.min > 0) {
+      const label = `${p.dt.getMonth()+1}/${p.dt.getDate()} · ${p.min}분`;
       svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.min).toFixed(1)}" r="3" fill="#2D6A4F"/>`;
-      svg += `<text x="${x(i).toFixed(1)}" y="${(y(p.min)-7).toFixed(1)}" text-anchor="middle" font-size="9" fill="#2D6A4F" font-weight="600">${p.min}</text>`;
+      // 값은 상시 노출하지 않고, 점에 호버(또는 스크린리더 포커스)했을 때만 보이는 네이티브 툴팁으로 제공
+      svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.min).toFixed(1)}" r="10" fill="transparent" style="cursor:pointer"><title>${label}</title></circle>`;
     }
   });
   pts.forEach((p, i) => {
