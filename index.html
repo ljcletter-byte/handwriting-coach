@@ -144,6 +144,7 @@
     .stat-card::before{content:'';position:absolute;top:-20px;right:-20px;width:56px;height:56px;border-radius:50%;background:rgba(45,106,79,.06)}
     .stat-value{font-size:22px;font-weight:800;color:#2D6A4F;margin-bottom:4px;position:relative}
     .stat-label{font-size:11.5px;color:#8a9a90;position:relative}
+    .stat-sub{font-size:10px;color:var(--text3);margin-top:3px}
     @media (min-width:520px){ .stats-grid{grid-template-columns:repeat(5,1fr)} .stats-grid .stat-card:last-child{grid-column:auto} }
     .chart-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:8px}
     .chart-title{font-size:14px;font-weight:700;color:#333;margin-bottom:3px}
@@ -284,6 +285,8 @@
     [data-theme="dark"] .leg-dot.done{background:#2A2033;border-color:#4A3A66}
     .leg-dot.today{background:none;border:2px solid var(--green)}
     .leg-dot.challenge{background:var(--card);border:1px solid var(--border)}
+    .leg-dot.frozen{background:#EAF4FB;border:1px dashed #A9CBE8}
+    [data-theme="dark"] .leg-dot.frozen{background:#16232E;border-color:#2E4A63}
     @keyframes capFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     .cal-flower{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.28;pointer-events:none;z-index:0}
     .cal-day.done{position:relative;background:#EDE7F6!important;border-color:#C9B8E8!important}
@@ -735,6 +738,7 @@
           <div class="cal-legend-item"><div class="leg-dot done"></div>완료</div>
           <div class="cal-legend-item"><div class="leg-dot today"></div>오늘</div>
           <div class="cal-legend-item"><div class="leg-dot challenge"></div>챌린지 기간</div>
+          <div class="cal-legend-item"><div class="leg-dot frozen"></div>❄️ 프리즈</div>
         </div>
       </div>
       <div class="cal-summary">완료 <strong id="cal-done-count">0</strong>일 / 84일</div>
@@ -830,7 +834,7 @@
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-value" id="stat-total-time">0분</div><div class="stat-label">총 연습 시간</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-avg-time">-</div><div class="stat-label">하루 평균</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-streak">0일</div><div class="stat-label">연속 기록 🔥</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-streak">0일</div><div class="stat-label">연속 기록 🔥</div><div class="stat-sub" id="stat-streak-sub">최고 0일</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-week-time">0분</div><div class="stat-label">이번 주 연습</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-completion-rate">0%</div><div class="stat-label">완료율</div></div>
       </div>
