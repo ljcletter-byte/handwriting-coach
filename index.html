@@ -139,11 +139,12 @@
     .guide-list-warn li{color:#a94442}
     .guide-tip{background:#f5f9f6;border:1px solid #D8F3DC;border-radius:10px;padding:14px 16px;font-size:13px;color:#2D6A4F;line-height:1.6}
     .stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+    .stats-grid .stat-card:last-child{grid-column:1 / -1}
     .stat-card{background:linear-gradient(150deg,#fff,#f7faf8);border:1px solid #E5EDE8;border-radius:14px;padding:18px 12px;text-align:center;position:relative;overflow:hidden}
     .stat-card::before{content:'';position:absolute;top:-20px;right:-20px;width:56px;height:56px;border-radius:50%;background:rgba(45,106,79,.06)}
     .stat-value{font-size:22px;font-weight:800;color:#2D6A4F;margin-bottom:4px;position:relative}
     .stat-label{font-size:11.5px;color:#8a9a90;position:relative}
-    @media (min-width:520px){ .stats-grid{grid-template-columns:repeat(4,1fr)} }
+    @media (min-width:520px){ .stats-grid{grid-template-columns:repeat(5,1fr)} .stats-grid .stat-card:last-child{grid-column:auto} }
     .chart-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:8px}
     .chart-title{font-size:14px;font-weight:700;color:#333;margin-bottom:3px}
     .chart-sub{font-size:11px;color:#a5a5a5;line-height:1.4}
@@ -153,6 +154,9 @@
     .bar-value{font-size:10px;color:#666;margin-bottom:3px;white-space:nowrap}
     .bar{width:100%;max-width:26px;background:linear-gradient(180deg,#95D5B2,#74C69D);border-radius:6px 6px 0 0;min-height:2px;transition:height .4s cubic-bezier(.2,1,.4,1)}
     .bar-col.today .bar{background:linear-gradient(180deg,#40916C,#2D6A4F)}
+    .bar-ghost{background:none!important;border:1.5px dashed var(--border)}
+    .bar-col.future .bar-value{color:var(--text3);opacity:.7}
+    .bar-col.future .bar-label{opacity:.5}
     .bar-label{font-size:11px;color:var(--text3);margin-top:6px}
     .badge-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
     @media (min-width:520px){ .badge-grid{grid-template-columns:repeat(6,1fr)} }
@@ -828,13 +832,14 @@
         <div class="stat-card"><div class="stat-value" id="stat-avg-time">-</div><div class="stat-label">하루 평균</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-streak">0일</div><div class="stat-label">연속 기록 🔥</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-week-time">0분</div><div class="stat-label">이번 주 연습</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-completion-rate">0%</div><div class="stat-label">완료율</div></div>
       </div>
 
       <div class="card fadein">
         <div class="chart-head">
           <div>
             <div class="chart-title">📈 매일 연습 시간</div>
-            <div class="chart-sub">최근 14일 · 얼마나 꾸준한지 흐름을 봐요</div>
+            <div class="chart-sub">최근 14일 · 점선은 7일 평균 추세예요</div>
           </div>
         </div>
         <div id="daily-line-chart"></div>
@@ -865,7 +870,7 @@
         <div class="chart-head">
           <div>
             <div class="chart-title">🗓️ 요일별 습관</div>
-            <div class="chart-sub">무슨 요일에 잘 하는지 패턴을 봐요</div>
+            <div class="chart-sub">그 요일이 지나간 날 중 완료한 비율이에요</div>
           </div>
         </div>
         <div class="bar-chart" id="dow-chart"></div>
