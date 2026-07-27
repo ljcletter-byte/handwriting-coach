@@ -467,6 +467,8 @@ textarea {
   line-height: 1.6;
 }
 textarea:focus { border-color: var(--text2); }
+#feedback-input { overflow-y: hidden; resize: none; min-height: 90px; max-height: 420px; }
+#feedback-input.at-max { overflow-y: auto; }
 .ai-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
 .ai-loading { display: none; padding: 12px; text-align: center; font-size: 11px; color: var(--text2); }
 .ai-loading.show { display: block; }
