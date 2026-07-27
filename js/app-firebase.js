@@ -2057,7 +2057,7 @@ function renderCumulativeChart(ps) {
   if (totalEl) totalEl.textContent = fmtHM(totalMin * 60);
 
   if (totalMin === 0) {
-    box.innerHTML = '<div style="text-align:center;color:#bbb;font-size:12px;padding:24px 0">아직 쌓인 연습 시간이 없어요.<br>연습을 시작하면 그래프가 우상향해요! 🏔️</div>';
+    box.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px 0">아직 쌓인 연습 시간이 없어요.<br>연습을 시작하면 그래프가 우상향해요! 🏔️</div>';
     return;
   }
 
@@ -2073,22 +2073,22 @@ function renderCumulativeChart(ps) {
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible">`;
   svg += `<defs><linearGradient id="cumGrad" x1="0" y1="0" x2="0" y2="1">`
-       + `<stop offset="0%" stop-color="#40916C" stop-opacity="0.35"/>`
-       + `<stop offset="100%" stop-color="#40916C" stop-opacity="0.02"/></linearGradient></defs>`;
+       + `<stop offset="0%" style="stop-color:var(--green2);stop-opacity:0.35"/>`
+       + `<stop offset="100%" style="stop-color:var(--green2);stop-opacity:0.02"/></linearGradient></defs>`;
   grids.forEach(g => {
     const gy = y(g);
-    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#eee" stroke-width="1"/>`;
-    svg += `<text x="${padL-6}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="9" fill="#bbb">${g}</text>`;
+    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" style="stroke:var(--border)" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="9" style="fill:var(--text3)">${g}</text>`;
   });
   svg += `<path d="${areaPath}" fill="url(#cumGrad)"/>`;
-  svg += `<path d="${linePath}" fill="none" stroke="#2D6A4F" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  svg += `<path d="${linePath}" fill="none" style="stroke:var(--green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
   const last = pts[pts.length - 1];
-  svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="4" fill="#2D6A4F"/>`;
-  svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="8" fill="#2D6A4F" opacity="0.15"/>`;
+  svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="4" style="fill:var(--green)"/>`;
+  svg += `<circle cx="${x(N-1).toFixed(1)}" cy="${y(last.cumMin).toFixed(1)}" r="8" style="fill:var(--green)" opacity="0.15"/>`;
   [0, Math.floor((N-1)/2), N-1].forEach(i => {
     const p = pts[i];
     const label = `${p.dt.getMonth()+1}/${p.dt.getDate()}`;
-    svg += `<text x="${x(i).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#999">${label}</text>`;
+    svg += `<text x="${x(i).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" font-size="9" style="fill:var(--text3)">${label}</text>`;
   });
   svg += `</svg>`;
   box.innerHTML = svg;
@@ -2105,7 +2105,18 @@ function renderDailyLineChart(ps) {
     const min = Math.round((ps[ymd(dt)] || 0) / 60);
     pts.push({ dt, min });
   }
-  const maxMin = Math.max(...pts.map(p => p.min), 10);
+  // 7일 이동평균 — 하루하루 들쭉날쭉한 값 대신 최근 추세가 좋아지는지/나빠지는지를 보여줌.
+  // 화면에 보이는 14일보다 더 이전 기록도 ps에서 끌어와 평균에 반영한다(예: 창 첫날도 지난 7일 평균을 온전히 계산).
+  const MA_WINDOW = 7;
+  const maVals = pts.map(p => {
+    let sum = 0;
+    for (let k = 0; k < MA_WINDOW; k++) {
+      const d = new Date(p.dt); d.setDate(d.getDate() - k);
+      sum += (ps[ymd(d)] || 0);
+    }
+    return sum / MA_WINDOW / 60;
+  });
+  const maxMin = Math.max(...pts.map(p => p.min), ...maVals, 10);
 
   const W = 320, H = 150, padL = 28, padR = 10, padT = 12, padB = 24;
   const plotW = W - padL - padR, plotH = H - padT - padB;
@@ -2113,21 +2124,31 @@ function renderDailyLineChart(ps) {
   const y = m => padT + plotH - (plotH * m / maxMin);
 
   const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.min).toFixed(1)}`).join(' ');
+  const maPath = maVals.map((m, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(m).toFixed(1)}`).join(' ');
   const areaPath = `${linePath} L${x(DAYS-1).toFixed(1)},${(padT+plotH).toFixed(1)} L${x(0).toFixed(1)},${(padT+plotH).toFixed(1)} Z`;
   const grids = [0, Math.round(maxMin/2), maxMin];
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible">`;
   grids.forEach(g => {
     const gy = y(g);
-    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#eee" stroke-width="1"/>`;
-    svg += `<text x="${padL-6}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="9" fill="#bbb">${g}</text>`;
+    svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" style="stroke:var(--border)" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${(gy+3).toFixed(1)}" text-anchor="end" font-size="9" style="fill:var(--text3)">${g}</text>`;
   });
-  svg += `<path d="${areaPath}" fill="#D8F3DC" opacity="0.5"/>`;
-  svg += `<path d="${linePath}" fill="none" stroke="#2D6A4F" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  svg += `<path d="${areaPath}" style="fill:var(--green-l)"/>`;
+  // 목표 기준선 — 이 프로그램은 "매일 10분"이 목표라, 데이터 위에 점선으로 표시
+  const GOAL_MIN = 10;
+  if (GOAL_MIN <= maxMin) {
+    const goalY = y(GOAL_MIN).toFixed(1);
+    svg += `<line x1="${padL}" y1="${goalY}" x2="${W-padR}" y2="${goalY}" style="stroke:var(--green4)" stroke-width="1" stroke-dasharray="3,3"/>`;
+    svg += `<text x="${padL+3}" y="${(parseFloat(goalY)-4).toFixed(1)}" font-size="8" style="fill:var(--green4)">목표 10분</text>`;
+  }
+  // 7일 평균 추세선 — 원본 데이터 선보다 얇고 옅은 점선으로, 뒤에 깔리도록 데이터 선보다 먼저 그림
+  svg += `<path d="${maPath}" fill="none" style="stroke:var(--text2)" stroke-width="1.5" stroke-dasharray="5,3" stroke-linejoin="round" stroke-linecap="round" opacity="0.75"/>`;
+  svg += `<path d="${linePath}" fill="none" style="stroke:var(--green)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
   pts.forEach((p, i) => {
     if (p.min > 0) {
-      const label = `${p.dt.getMonth()+1}/${p.dt.getDate()} · ${p.min}분`;
-      svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.min).toFixed(1)}" r="3" fill="#2D6A4F"/>`;
+      const label = `${p.dt.getMonth()+1}/${p.dt.getDate()} · ${p.min}분 (7일 평균 ${maVals[i].toFixed(1)}분)`;
+      svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.min).toFixed(1)}" r="3" style="fill:var(--green)"/>`;
       // 값은 상시 노출하지 않고, 점에 호버(또는 스크린리더 포커스)했을 때만 보이는 네이티브 툴팁으로 제공
       svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.min).toFixed(1)}" r="10" fill="transparent" style="cursor:pointer"><title>${label}</title></circle>`;
     }
@@ -2135,13 +2156,13 @@ function renderDailyLineChart(ps) {
   pts.forEach((p, i) => {
     if (i % 3 === 0 || i === DAYS - 1) {
       const label = `${p.dt.getMonth()+1}/${p.dt.getDate()}`;
-      svg += `<text x="${x(i).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" font-size="9" fill="#999">${label}</text>`;
+      svg += `<text x="${x(i).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" font-size="9" style="fill:var(--text3)">${label}</text>`;
     }
   });
   svg += `</svg>`;
 
   const hasAny = pts.some(p => p.min > 0);
-  box.innerHTML = hasAny ? svg : '<div style="text-align:center;color:#bbb;font-size:12px;padding:24px 0">아직 연습 기록이 없어요.<br>연습하고 저장하면 그래프가 그려져요.</div>';
+  box.innerHTML = hasAny ? svg : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px 0">아직 연습 기록이 없어요.<br>연습하고 저장하면 그래프가 그려져요.</div>';
 }
 
 function renderStats() {
@@ -2166,6 +2187,7 @@ function renderStats() {
     weekSec += ps[ymd(dt)] || 0;
   }
   document.getElementById('stat-week-time').textContent = Math.round(weekSec / 60) + '분';
+  document.getElementById('stat-completion-rate').textContent = Math.round(doneCount() / n * 100) + '%';
 
   renderDailyLineChart(ps);
   renderCumulativeChart(ps);
@@ -2181,24 +2203,49 @@ function renderStats() {
     weekMin.push(Math.round(sec / 60));
   }
   const maxWeekMin = Math.max(...weekMin, 1);
-  document.getElementById('week-chart').innerHTML = weekMin.map((m, i) => `
-    <div class="bar-col${i + 1 === curW ? ' today' : ''}">
-      <div class="bar-value">${m > 0 ? m + '분' : ''}</div>
-      <div class="bar" style="height:${m > 0 ? Math.max(m / maxWeekMin * 100, 4) : 0}%"></div>
+  // "0"이 두 가지 의미로 섞여 보이던 문제 수정: 아직 도달하지 않은 미래 주차(예정)와
+  // 이미 지나갔는데 안 한 주(진짜 0분)를 다른 모양으로 구분해서 보여준다.
+  document.getElementById('week-chart').innerHTML = weekMin.map((m, i) => {
+    const isFuture = (i + 1) > curW;
+    const isToday = (i + 1) === curW;
+    if (isFuture) {
+      return `
+    <div class="bar-col future">
+      <div class="bar-value">예정</div>
+      <div class="bar bar-ghost" style="height:22%"></div>
       <div class="bar-label">${i + 1}주</div>
-    </div>`).join('');
+    </div>`;
+    }
+    return `
+    <div class="bar-col${isToday ? ' today' : ''}">
+      <div class="bar-value">${m}분</div>
+      <div class="bar" style="height:${m > 0 ? Math.max(m / maxWeekMin * 100, 4) : 3}%"></div>
+      <div class="bar-label">${i + 1}주</div>
+    </div>`;
+  }).join('');
 
   const dowCount = [0, 0, 0, 0, 0, 0, 0];
   Object.keys(cd).forEach(ds => { if (cd[ds]) dowCount[new Date(ds).getDay()]++; });
-  const maxDow = Math.max(...dowCount, 1);
+  // 요일마다 프로그램 기간 동안 "이미 지나간 횟수"가 다를 수 있어(예: 화요일 3번 vs 수요일 4번),
+  // 단순 완료 횟수로는 요일 간 비교가 왜곡됨 → 지나간 횟수 대비 완료율(%)로 정규화
+  const dowOpportunity = [0, 0, 0, 0, 0, 0, 0];
+  {
+    const d = new Date(start);
+    const endD = new Date(today());
+    while (d <= endD) { dowOpportunity[d.getDay()]++; d.setDate(d.getDate() + 1); }
+  }
   const dowLabels = ['일', '월', '화', '수', '목', '금', '토'];
   const todayDow = new Date().getDay();
-  document.getElementById('dow-chart').innerHTML = dowCount.map((c, i) => `
+  document.getElementById('dow-chart').innerHTML = dowCount.map((c, i) => {
+    const opp = Math.max(dowOpportunity[i], 1);
+    const pct = Math.round(c / opp * 100);
+    return `
     <div class="bar-col${i === todayDow ? ' today' : ''}">
-      <div class="bar-value">${c > 0 ? c + '회' : ''}</div>
-      <div class="bar" style="height:${c > 0 ? Math.max(c / maxDow * 100, 4) : 0}%"></div>
+      <div class="bar-value" title="${c}/${dowOpportunity[i]}일 완료">${dowOpportunity[i] > 0 ? pct + '%' : ''}</div>
+      <div class="bar" style="height:${dowOpportunity[i] > 0 ? Math.max(pct, 4) : 0}%"></div>
       <div class="bar-label">${dowLabels[i]}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const MILESTONES = [
     { days: 3,  icon: '🌱', label: '새싹' },
