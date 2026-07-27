@@ -64,7 +64,10 @@ let userData = {
   journals: {},
   practiceSeconds: {},
   onboarded: false,
-  growthMilestonesShown: [] // 이미 보여준 성장 마일스톤 배너(5,10,20...) 기록 — 중복 표시 방지
+  growthMilestonesShown: [], // 이미 보여준 성장 마일스톤 배너(5,10,20...) 기록 — 중복 표시 방지
+  streakFreezes: {},         // 자동으로 동결된 날짜 { 'YYYY-MM-DD': true } — 스트릭 계산에만 쓰이고 통계엔 영향 없음
+  streakFreezeUsedWeeks: {}, // 이미 프리즈를 쓴 주차 { 1: true, ... } — 주당 1회 제한
+  longestStreak: 0           // 역대 최장 스트릭(PR)
 };
 
 function setSyncStatus(status) {
@@ -82,6 +85,9 @@ window.loadUserData = async function(uid) {
     const snap = await window._getDoc(ref);
     if (snap.exists()) {
       userData = snap.data();
+      userData.streakFreezes = userData.streakFreezes || {};
+      userData.streakFreezeUsedWeeks = userData.streakFreezeUsedWeeks || {};
+      userData.longestStreak = userData.longestStreak || 0;
     } else {
       await window._setDoc(ref, userData);
     }
@@ -147,6 +153,9 @@ async function createBackupSnapshot(kind) {
       completedDays: userData.completedDays || {},
       journals: userData.journals || {},
       practiceSeconds: userData.practiceSeconds || {},
+      streakFreezes: userData.streakFreezes || {},
+      streakFreezeUsedWeeks: userData.streakFreezeUsedWeeks || {},
+      longestStreak: userData.longestStreak || 0,
     });
     return backupId;
   } catch (e) {
@@ -235,6 +244,9 @@ window.restoreFromBackup = async function(backupId) {
     userData.completedDays = b.completedDays || {};
     userData.journals = b.journals || {};
     userData.practiceSeconds = b.practiceSeconds || {};
+    userData.streakFreezes = b.streakFreezes || {};
+    userData.streakFreezeUsedWeeks = b.streakFreezeUsedWeeks || {};
+    userData.longestStreak = b.longestStreak || 0;
     await saveUserData();
     alert('✅ 복원되었습니다!');
     location.reload();
@@ -307,7 +319,7 @@ window.confirmReset = async function() {
 };
 
 async function doReset() {
-  userData = { startDate: today(), completedDays: {}, journals: {}, practiceSeconds: {}, onboarded: true };
+  userData = { startDate: today(), completedDays: {}, journals: {}, practiceSeconds: {}, onboarded: true, streakFreezes: {}, streakFreezeUsedWeeks: {}, longestStreak: 0 };
   await saveUserData();
   clearInterval(tIv); tIv = null; tRun = false;
   clearInterval(swIv); swIv = null;
@@ -1795,16 +1807,20 @@ function renderCalendar() {
     const inC  = dt >= start && dt <= end;
     const isT  = ds === today();
     const isDone = (userData.completedDays || {})[ds];
+    const isFrozen = !isDone && (userData.streakFreezes || {})[ds];
     const sec = (userData.practiceSeconds || {})[ds] || 0;
     const min = Math.round(sec / 60);
-    el.className = 'cal-day' + (isDone ? ' done' : inC ? ' challenge' : '') + (isT ? ' today' : '');
+    el.className = 'cal-day' + (isDone ? ' done' : isFrozen ? ' frozen' : inC ? ' challenge' : '') + (isT ? ' today' : '');
     el.innerHTML = `<div class="cal-day-content"><span class="cal-day-num">${d}</span>` +
       (isDone && min > 0 ? `<span class="cal-day-min">${min}분</span>` : '') + `</div>` +
-      (isDone ? calFlowerSVG() : '');
+      (isDone ? calFlowerSVG() : '') +
+      (isFrozen ? `<span class="cal-day-frozen-icon" aria-hidden="true">❄️</span>` : '');
     if (isDone) {
       el.classList.add('clickable');
       el.title = '클릭하면 그날의 기록을 볼 수 있어요';
       el.onclick = () => showJournalDetail(ds);
+    } else if (isFrozen) {
+      el.title = '스트릭 프리즈로 보호된 날이에요 (주 1회 자동 적용)';
     }
     g.appendChild(el);
   }
@@ -2024,14 +2040,58 @@ function fmtHM(sec) {
   return `${m}분`;
 }
 
-function computeStreak() {
+// ── 스트릭 프리즈 (자동 주 1회) ──────────────────────────────
+// 챌린지 시작일 기준 7일 블록마다, 그 주에 놓친 날이 있으면 가장 이른 날 하루를 자동으로
+// '동결'해서 스트릭이 끊기지 않게 해준다. 주당 최대 1회, 안 쓰면 그냥 소멸(다음 주로 이월 안 됨).
+// 중요: completedDays(실제 연습 기록)는 절대 건드리지 않는다 — 완료율·요일별 통계는 그대로 정확해야 하므로,
+// 프리즈 여부는 별도의 streakFreezes에만 기록한다.
+function maintainStreakFreezes() {
+  if (!userData.startDate) return;
+  userData.streakFreezes = userData.streakFreezes || {};
+  userData.streakFreezeUsedWeeks = userData.streakFreezeUsedWeeks || {};
   const cd = userData.completedDays || {};
+  const fz = userData.streakFreezes;
+  const usedWeeks = userData.streakFreezeUsedWeeks;
+  const start = new Date(userData.startDate);
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  let changed = false;
+
+  for (let wi = 0; wi < 12; wi++) {
+    const weekNum = wi + 1;
+    if (usedWeeks[weekNum]) continue;
+    const ws = new Date(start); ws.setDate(ws.getDate() + wi * 7);
+    if (ws > yesterday) break; // 아직 시작 안 한 주 — 이후 주도 전부 미래이므로 중단
+
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(ws); dt.setDate(dt.getDate() + i);
+      if (dt > yesterday) break; // 아직 안 지난 날
+      const key = ymd(dt);
+      if (!cd[key] && !fz[key]) {
+        fz[key] = true;
+        usedWeeks[weekNum] = true;
+        changed = true;
+        break;
+      }
+    }
+  }
+  if (changed) saveUserDataPartial({ streakFreezes: fz, streakFreezeUsedWeeks: usedWeeks });
+}
+
+function computeStreak() {
+  maintainStreakFreezes();
+  const cd = userData.completedDays || {};
+  const fz = userData.streakFreezes || {};
   let d = new Date();
-  if (!cd[ymd(d)]) d.setDate(d.getDate() - 1);
+  if (!cd[ymd(d)] && !fz[ymd(d)]) d.setDate(d.getDate() - 1);
   let streak = 0;
-  while (cd[ymd(d)]) {
+  while (cd[ymd(d)] || fz[ymd(d)]) {
     streak++;
     d.setDate(d.getDate() - 1);
+  }
+  // 역대 최장 스트릭(PR) 갱신 — 지금 스트릭이 나중에 끊겨도 이 기록은 남는다
+  if (streak > (userData.longestStreak || 0)) {
+    userData.longestStreak = streak;
+    saveUserDataPartial({ longestStreak: streak });
   }
   return streak;
 }
@@ -2176,7 +2236,13 @@ function renderStats() {
   document.getElementById('stat-total-time').textContent = totalSec > 0 ? fmtHM(totalSec) : '0분';
   document.getElementById('stat-avg-time').textContent = daysWithTime ? Math.round(totalSec / 60 / daysWithTime) + '분' : '-';
 
-  document.getElementById('stat-streak').textContent = computeStreak() + '일';
+  const streakNow = computeStreak();
+  document.getElementById('stat-streak').textContent = streakNow + '일';
+  const streakSub = document.getElementById('stat-streak-sub');
+  if (streakSub) {
+    const longest = userData.longestStreak || streakNow;
+    streakSub.textContent = (streakNow > 0 && streakNow >= longest) ? '🏆 역대 최고 기록!' : `최고 ${longest}일`;
+  }
 
   const n = Math.min(Math.max(dayFromStart(), 1), 84);
   const { w: curW } = wkDay(n);
@@ -2353,7 +2419,10 @@ window.exportJSON = function() {
     completedDays: userData.completedDays || {},
     journals: userData.journals || {},
     practiceSeconds: userData.practiceSeconds || {},
-    onboarded: userData.onboarded || false
+    onboarded: userData.onboarded || false,
+    streakFreezes: userData.streakFreezes || {},
+    streakFreezeUsedWeeks: userData.streakFreezeUsedWeeks || {},
+    longestStreak: userData.longestStreak || 0
   };
   const stamp = today().replace(/-/g, '');
   downloadFile(`악필교정_백업_${stamp}.json`, JSON.stringify(backup, null, 2), 'application/json');
@@ -2418,6 +2487,10 @@ document.getElementById('restore-input').addEventListener('change', async e => {
     userData.journals        = data.journals        || {};
     userData.practiceSeconds = data.practiceSeconds || {};
     userData.onboarded       = data.onboarded !== undefined ? data.onboarded : true;
+    // 이전 버전 백업(프리즈 필드가 없던 파일)이어도 안전하게 — 복원된 completedDays 기준으로 다음 렌더링 때 다시 계산됨
+    userData.streakFreezes         = data.streakFreezes         || {};
+    userData.streakFreezeUsedWeeks = data.streakFreezeUsedWeeks || {};
+    userData.longestStreak         = data.longestStreak         || 0;
 
     await saveUserData();
     updateDash(); renderCalendar(); loadJournal();
