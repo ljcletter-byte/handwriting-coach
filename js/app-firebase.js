@@ -330,6 +330,7 @@ async function doReset() {
   tUpd(); swUpd(); practiceUpd();
   document.getElementById('weakness-input').value = '';
   document.getElementById('feedback-input').value = '';
+  autoGrowTextarea(document.getElementById('feedback-input'));
   selfCheckValue = null;
   if (typeof renderSelfCheck === 'function') renderSelfCheck();
   const preview = document.getElementById('upload-preview');
@@ -1610,6 +1611,7 @@ async function loadJournal() {
   const j = (userData.journals || {})[t] || {};
   document.getElementById('weakness-input').value = j.weakness || '';
   document.getElementById('feedback-input').value = stripMarkdown(j.feedback || '');
+  autoGrowTextarea(document.getElementById('feedback-input'));
   selfCheckValue = j.selfCheck || null;
   renderSelfCheck();
 
@@ -1767,6 +1769,7 @@ window.getAIFeedback = async function() {
       resultEl.innerHTML = renderMarkdownHtml(txt);
       resultEl.classList.add('show');
       document.getElementById('feedback-input').value = stripMarkdown(txt);
+      autoGrowTextarea(document.getElementById('feedback-input'));
       loadingEl.classList.remove('show');
       document.getElementById('btn-ai').disabled = false;
       return;
@@ -1841,6 +1844,17 @@ function calFlowerSVG() {
 }
 window.calPrev = function() { if (calM===0){calY--;calM=11;}else calM--; renderCalendar(); };
 window.calNext = function() { if (calM===11){calY++;calM=0;}else calM++; renderCalendar(); };
+
+// 피드백 메모창(textarea)이 내용 길이에 맞춰 자동으로 늘어나도록.
+// (고정 4줄 스크롤 안에 내용이 잘려서 다 못 읽고 넘어가는 문제 방지 — 너무 길면 max-height에서만 스크롤)
+window.autoGrowTextarea = function(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  const maxH = parseInt(getComputedStyle(el).maxHeight, 10) || 420;
+  const next = Math.min(el.scrollHeight, maxH);
+  el.style.height = next + 'px';
+  el.classList.toggle('at-max', el.scrollHeight > maxH);
+};
 
 function escHtml(s) {
   return String(s)
