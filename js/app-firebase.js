@@ -7,6 +7,15 @@ const ymd = d => {
 };
 const today = () => ymd(new Date());
 
+// "YYYY-MM-DD" 문자열을 new Date(string)으로 바로 넘기면 스펙상 UTC 자정으로 해석된다.
+// 한국(UTC+9)에서는 이게 실제로 그 날짜의 09:00으로 취급되는 셈이라, new Date(y,m,d)로 만든
+// 로컬 자정 Date와 비교할 때(챌린지 시작일 경계, 주차 계산 등) 미묘하게 어긋날 수 있다.
+// 항상 이 함수로 파싱하면 "그 날짜의 로컬 자정"으로 일관되게 처리된다.
+function parseLocalDate(dateStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function ymdOffset(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -185,7 +194,7 @@ async function pruneOldBackups() {
 
 async function maybeAutoBackup() {
   const last = userData.lastAutoBackup;
-  const gap = last ? Math.round((new Date(today()) - new Date(last)) / 864e5) : 999;
+  const gap = last ? Math.round((parseLocalDate(today()) - parseLocalDate(last)) / 864e5) : 999;
   if (gap < 7) return;
   const id = await createBackupSnapshot('auto');
   if (id) {
@@ -321,10 +330,9 @@ window.confirmReset = async function() {
 async function doReset() {
   userData = { startDate: today(), completedDays: {}, journals: {}, practiceSeconds: {}, onboarded: true, streakFreezes: {}, streakFreezeUsedWeeks: {}, longestStreak: 0 };
   await saveUserData();
-  clearInterval(tIv); tIv = null; tRun = false;
-  clearInterval(swIv); swIv = null;
+  clearInterval(runIv); runIv = null; tRun = false;
   tSec = 600; swSec = 0; swSecAutoSaved = 0;
-  breakShown = false;
+  breakShown = false; tDoneShown = false;
   setTimerBtnLabel('시작');
   document.getElementById('timer-done').classList.remove('show');
   tUpd(); swUpd(); practiceUpd();
@@ -353,7 +361,7 @@ async function doReset() {
 }
 
 const dayFromStart = () => {
-  const d = Math.floor((new Date(today()) - new Date(userData.startDate)) / 864e5) + 1;
+  const d = Math.floor((parseLocalDate(today()) - parseLocalDate(userData.startDate)) / 864e5) + 1;
   return Math.min(Math.max(d, 1), 84);
 };
 const wkDay    = n => ({ w: Math.min(Math.ceil(n/7), 12), d: Math.min(((n-1)%7)+1, 7) });
@@ -1116,10 +1124,15 @@ function finishWarmupGuide() {
   }
 }
 
-let tSec = 600, tRun = false, tIv = null;
-let breakShown = false;
-let swSec = 0, swIv = null;
+let tSec = 600, tRun = false, runIv = null;
+let breakShown = false, tDoneShown = false;
+let swSec = 0;
 let swSecAutoSaved = 0; // 지금까지 자동 저장으로 이미 클라우드에 반영된 초 (화면 표시용 swSec은 건드리지 않음)
+// 시작/재개 시점의 실제 시각과 그때의 tSec/swSec 값을 기준점으로 저장.
+// 매 틱마다 "1초씩 빼기/더하기"가 아니라 "지금 시각 - 기준 시각"으로 다시 계산해서,
+// 아이폰이 화면을 잠그거나 다른 앱으로 전환해 setInterval이 멈췄다 늦게 돌아와도
+// 실제 흐른 시간 그대로 정확하게 따라잡는다.
+let runStartTs = 0, tSecAtStart = 600, swSecAtStart = 0;
 
 const tFmt = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
 const swFmt = s => {
@@ -1177,36 +1190,44 @@ function setTimerBtnLabel(text) {
   if (fabBtn) fabBtn.textContent = text;
 }
 
+// 매초 불리는 게 아니라, "지금까지 실제로 얼마나 지났는지"를 벽시계로 다시 계산하는 함수.
+// setInterval이 정확히 1000ms마다 불린다는 보장이 없어도(백그라운드에서 늦게 불려도) 항상 맞는 값이 나온다.
+function timerTick() {
+  const elapsed = Math.max(0, Math.round((Date.now() - runStartTs) / 1000));
+  tSec = Math.max(0, tSecAtStart - elapsed);
+  swSec = swSecAtStart + elapsed;
+
+  if (!breakShown && tSec <= 300) { breakShown = true; showWristBreak(); }
+  if (!tDoneShown && tSec <= 0) {
+    tDoneShown = true;
+    document.getElementById('timer-done').classList.add('show');
+    beep();
+  }
+  if (swSec - swSecAutoSaved >= 60) autoSavePracticeTime();
+
+  tUpd(); swUpd(); practiceUpd();
+}
+
 window.timerToggle = function() {
-  if (tRun || swIv) {
-    clearInterval(tIv); tIv = null; tRun = false;
-    clearInterval(swIv); swIv = null;
+  if (tRun) {
+    clearInterval(runIv); runIv = null; tRun = false;
     setTimerBtnLabel('계속');
   } else {
     setTimerBtnLabel('일시정지');
-    if (tSec > 0) {
-      tRun = true;
-      tIv = setInterval(() => {
-        tSec--; tUpd();
-        if (tSec === 300 && !breakShown) {
-          breakShown = true;
-          showWristBreak();
-        }
-        if (tSec <= 0) {
-          clearInterval(tIv); tIv = null; tRun = false;
-          document.getElementById('timer-done').classList.add('show');
-          beep();
-        }
-      }, 1000);
-    }
-    swIv = setInterval(() => {
-      swSec++; swUpd(); practiceUpd();
-      // 60초마다 자동으로 클라우드에 저장 (저장 버튼을 깜빡해도 최대 1분치만 손실되도록 하는 안전망)
-      if (swSec > 0 && swSec % 60 === 0) autoSavePracticeTime();
-    }, 1000);
+    tRun = true;
+    runStartTs = Date.now();
+    tSecAtStart = tSec;
+    swSecAtStart = swSec;
+    runIv = setInterval(timerTick, 1000);
   }
   tUpd();
 };
+
+// 아이폰 화면을 잠갔다 켜거나 다른 앱에 갔다 돌아왔을 때, 다음 1초 틱을 기다리지 않고
+// 그 즉시 실제 지난 시간만큼 화면을 바로 따라잡는다.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && tRun) timerTick();
+});
 
 // 스톱워치가 돌아가는 동안 60초마다 조용히 클라우드에 저장합니다.
 // (사용자가 저장 버튼을 깜빡하고 탭을 닫아도, 지금까지 쌓인 시간은 최대 1분 오차로 이미 저장돼 있음)
@@ -1260,12 +1281,11 @@ function commitPracticeTime() {
 
 
 window.timerReset = function() {
-  clearInterval(tIv); tIv = null; tRun = false;
-  clearInterval(swIv); swIv = null;
+  clearInterval(runIv); runIv = null; tRun = false;
   commitPracticeTime();
   saveUserData();
   tSec = 600;
-  breakShown = false;
+  breakShown = false; tDoneShown = false;
   window.closeWristBreak && window.closeWristBreak();
   setTimerBtnLabel('시작');
   document.getElementById('timer-done').classList.remove('show');
@@ -1453,9 +1473,8 @@ window.savePracticeCompletion = async function() {
   if (!userData.practiceSeconds) userData.practiceSeconds = {};
 
   // 스톱워치가 돌아가고 있으면 정지 후 시간 반영 (자동저장된 부분은 제외하고 나머지만)
-  if (swIv) {
-    clearInterval(swIv); swIv = null;
-    clearInterval(tIv); tIv = null; tRun = false;
+  if (tRun) {
+    clearInterval(runIv); runIv = null; tRun = false;
     setTimerBtnLabel('시작');
   }
   flushPracticeTimeToLocal();
@@ -1506,9 +1525,8 @@ window.saveJournal = async function() {
 
   // savePracticeCompletion과 동일하게, 여기서도 돌아가는 타이머/스톱워치가 있으면 함께 정지하고 반영합니다.
   // (이전에는 이 버튼만 눌렀을 때 타이머가 계속 돌아가는 비대칭 동작이 있었습니다)
-  if (swIv) {
-    clearInterval(swIv); swIv = null;
-    clearInterval(tIv); tIv = null; tRun = false;
+  if (tRun) {
+    clearInterval(runIv); runIv = null; tRun = false;
     setTimerBtnLabel('시작');
   }
   flushPracticeTimeToLocal();
@@ -1601,7 +1619,7 @@ window.onJournalDateChange = function() {
 };
 
 function dayNumOf(ds) {
-  const start = new Date(userData.startDate || ds);
+  const start = parseLocalDate(userData.startDate || ds);
   const dt = new Date(ds);
   return Math.min(Math.max(Math.floor((dt - start) / 864e5) + 1, 1), 84);
 }
@@ -1795,8 +1813,34 @@ window.getAIFeedback = async function() {
 };
 
 let calY = new Date().getFullYear(), calM = new Date().getMonth();
+
+// 아이폰 등에서 화면을 껐다 켜거나 다른 앱에 갔다 오면, 페이지가 완전히 새로고침되지 않고
+// 그대로 메모리에 남아있는 경우가 많다. 그 사이 자정을 넘기면 calY/calM(캘린더가 보여주는 연/월)이
+// "어제 기준 이번 달"에 그대로 멈춰있어서, 오늘 막 완료한 날짜가 캘린더에 안 보이는 문제가 생긴다.
+// 화면이 다시 보일 때마다 날짜가 바뀌었는지 확인해서, 필요하면 오늘 기준으로 다시 맞춘다.
+let _lastKnownToday = today();
+let _lastKnownY = calY, _lastKnownM = calM;
+function checkDateRollover() {
+  const now = new Date();
+  const t = ymd(now);
+  if (t === _lastKnownToday) return;
+  // 사용자가 일부러 다른 달을 보고 있었다면(예: 지난달 기록 확인 중) 그 화면은 건드리지 않는다.
+  const wasViewingCurrentMonth = (calY === _lastKnownY && calM === _lastKnownM);
+  _lastKnownToday = t;
+  _lastKnownY = now.getFullYear();
+  _lastKnownM = now.getMonth();
+  if (wasViewingCurrentMonth) { calY = _lastKnownY; calM = _lastKnownM; }
+  if (typeof updateDash === 'function') updateDash();
+  const calTab = document.getElementById('tab-calendar');
+  if (calTab && calTab.classList.contains('active')) renderCalendar();
+  const statsTab = document.getElementById('tab-stats');
+  if (statsTab && statsTab.classList.contains('active') && typeof renderStats === 'function') renderStats();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkDateRollover();
+});
 function renderCalendar() {
-  const start = new Date(userData.startDate || today());
+  const start = parseLocalDate(userData.startDate || today());
   const end   = new Date(start); end.setDate(end.getDate() + 83);
   document.getElementById('cal-title').textContent = calY + '년 ' + (calM+1) + '월';
   const first = new Date(calY, calM, 1), last = new Date(calY, calM+1, 0);
@@ -1904,7 +1948,7 @@ window.showJournalDetail = async function(ds) {
   const dateObj   = new Date(ds);
   const dateLabel = `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일`;
 
-  const startD = new Date(userData.startDate || ds);
+  const startD = parseLocalDate(userData.startDate || ds);
   const dn = Math.min(Math.max(Math.floor((dateObj - startD) / 864e5) + 1, 1), 84);
   const { w, d } = wkDay(dn);
   const mw = WEEKS[w];
@@ -2066,7 +2110,7 @@ function maintainStreakFreezes() {
   const cd = userData.completedDays || {};
   const fz = userData.streakFreezes;
   const usedWeeks = userData.streakFreezeUsedWeeks;
-  const start = new Date(userData.startDate);
+  const start = parseLocalDate(userData.startDate);
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
   let changed = false;
 
@@ -2115,8 +2159,8 @@ function renderCumulativeChart(ps) {
   const totalEl = document.getElementById('cumulative-total');
   if (!box) return;
 
-  const start = new Date(userData.startDate || today());
-  const end = new Date(today());
+  const start = parseLocalDate(userData.startDate || today());
+  const end = parseLocalDate(today());
   const dayCount = Math.max(Math.floor((end - start) / 864e5) + 1, 1);
   const N = Math.min(dayCount, 84);
 
@@ -2242,7 +2286,7 @@ function renderDailyLineChart(ps) {
 function renderStats() {
   const cd = userData.completedDays  || {};
   const ps = userData.practiceSeconds || {};
-  const start = new Date(userData.startDate || today());
+  const start = parseLocalDate(userData.startDate || today());
   renderBackupList();
 
   const totalSec = Object.values(ps).reduce((a, b) => a + b, 0);
@@ -2311,7 +2355,7 @@ function renderStats() {
   const dowOpportunity = [0, 0, 0, 0, 0, 0, 0];
   {
     const d = new Date(start);
-    const endD = new Date(today());
+    const endD = parseLocalDate(today());
     while (d <= endD) { dowOpportunity[d.getDay()]++; d.setDate(d.getDate() + 1); }
   }
   const dowLabels = ['일', '월', '화', '수', '목', '금', '토'];
@@ -2457,7 +2501,7 @@ window.exportText = function() {
     out += '아직 저장된 기록이 없습니다.\n';
   }
 
-  const start = new Date(userData.startDate || today());
+  const start = parseLocalDate(userData.startDate || today());
   dates.forEach(ds => {
     const dt = new Date(ds);
     const dn = Math.min(Math.max(Math.floor((dt - start) / 864e5) + 1, 1), 84);
